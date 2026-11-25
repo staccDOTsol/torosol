@@ -306,7 +306,7 @@ async function main() {
   let lastUsdcSqrtStr = '0'
   let lastUsdcRepositionMs = 0
 
-  log(`=== 03_keeper_service v2.34 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
+  log(`=== 03_keeper_service v2.35 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
   log(`pool=${whirlpoolPk.toBase58()} | pos=${positionPk.toBase58()} | mint=${mint.toBase58()}`)
   log(
     `band=[${BAND_LOW_MULT}x,${BAND_HIGH_MULT}x] | idle=${MULETA_IDLE_MS / 1000}s | ` +
@@ -975,13 +975,16 @@ async function main() {
     const lpSol = solIsA ? posAmts.reqA : posAmts.reqB
     const lpToro = solIsA ? posAmts.reqB : posAmts.reqA
 
-    // 0) 1-TX ZERO-LOSS LP→SOL→HIGHER-L SUPER-REBALANCER:
-    //    When lpToro > 1.85 & lpSol < 4.20 SOL (keeps L pinned in 800B-1,050B sweet spot: +23% NAV/bait!), atomically:
-    //      (a) tighten tickLower halfway to spot (withdrawing excess toroSOL),
+    // 0) 1-TX ZERO-LOSS SCALE-INVARIANT LP→SOL→HIGHER-L SUPER-REBALANCER:
+    //    Whenever toroSOL exceeds 34% of LP value (and > 1.15 toroSOL), adapts automatically to any LP TVL (3..50+ SOL) to:
+    //      (a) tighten tickLower toward spot (withdrawing excess toroSOL),
     //      (b) recover 100% of our own 2% T22 fee in-tx (toroAta → toroAta),
-    //      (c) redeem 100% via fee-waived SP12tWFx WithdrawSol → fresh native SOL,
+    //      (c) redeem up to ReserveStake's safe cap via fee-waived SP12tWFx WithdrawSol → fresh native SOL,
     //      (d) wrap & re-deploy that fresh SOL straight back into HIGHER concentrated L in the SAME tx (0ms idle-SOL gap!)
-    if (solIsA && lpSol < 4_200_000_000n && lpToro > 1_850_000_000n && maxResTokens >= 250_000_000n) {
+    const lpToroValSol = Number(lpToro) * poolState.navSolPerToken
+    const lpTotalValSol = Number(lpSol) + lpToroValSol
+    const lpToroShare = lpTotalValSol > 0 ? lpToroValSol / lpTotalValSol : 0
+    if (solIsA && lpToroShare > 0.34 && lpToro > 1_150_000_000n && maxResTokens >= 250_000_000n) {
       // Tighten up to 2/3 of the way on Step 1 (smart hybrid maxAskTick = 9..16 ticks ask, zero double-floor SOL stranding,
       // AND capped so withdrawnToro fits inside ReserveStake's instant SOL liquidity → ZERO Custom:35!).
       const curBase = alignTickFloor(wp.tickCurrentIndex, tickSpacing)
@@ -993,7 +996,7 @@ async function main() {
       while (newTickLow > pos.tickLowerIndex + tickSpacing) {
         const probe = computeAmountsForLiquidity(wp.sqrtPrice, newTickLow, pos.tickUpperIndex, newL)
         const probeW = posAmts.reqB > probe.reqB ? posAmts.reqB - probe.reqB : 0n
-        if (probeW <= maxResTokens) break
+        if (probeW <= maxResTokens + 150_000_000n) break
         newTickLow -= tickSpacing
       }
       if (newTickLow > pos.tickLowerIndex && newTickLow <= maxAskTick) {
