@@ -309,8 +309,9 @@ async function main() {
   let lastUsdcRepositionMs = 0
   let lastIdleRedeemMs = 0
   let lastFullGpaBurnMs = 0
+  let lastGasRefillMs = 0
 
-  log(`=== 03_keeper_service v2.41 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
+  log(`=== 03_keeper_service v2.42 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
   log(`pool=${whirlpoolPk.toBase58()} | pos=${positionPk.toBase58()} | mint=${mint.toBase58()}`)
   log(
     `band=[${BAND_LOW_MULT}x,${BAND_HIGH_MULT}x] | idle=${MULETA_IDLE_MS / 1000}s | ` +
@@ -1047,6 +1048,72 @@ async function main() {
           { cuLimit: 60_000, cuPriceMicroLamports: PRIO_FEE, dryRun: DRY_RUN, label: 'rebalance:withdraw-idle-toro' },
         )
         lastIdleRedeemMs = Date.now()
+        return true
+      }
+    }
+
+    // -0.5) 1-TX ZERO-LOSS GAS-TANK REFILL FROM LP:
+    //       If owner withdraws SOL from 331 wallet dropping native SOL < MIN_SOL_RESERVE (0.18 SOL) and idle wallet
+    //       toroSOL cannot cover the shortfall, pull a tiny (~7%) slice from our own Orca LP + unwrap WSOL + recover
+    //       our own 2% T22 withholding in 1 atomic tx (~75k CU, 0% loss) so Muleta NEVER stalls!
+    if (
+      lowNativeReserve &&
+      nativeNow >= 10_000_000n &&
+      Date.now() - lastGasRefillMs >= 120_000 &&
+      lpSol >= 1_000_000_000n &&
+      pos.liquidity > 0n
+    ) {
+      const targetNative = resLam + 100_000_000n // top up to ~0.28 SOL (+0.10 buffer above MIN_SOL_RESERVE)
+      const rawNeedSol = targetNative > nativeNow ? targetNative - nativeNow : 0n
+      const maxSliceSol = lpSol / 3n
+      const needSol = rawNeedSol < maxSliceSol ? rawNeedSol : maxSliceSol
+      const pullL = needSol > 0n ? (pos.liquidity * needSol) / lpSol : 0n
+      if (pullL > 0n && needSol >= 20_000_000n) {
+        const pulled = computeAmountsForLiquidity(wp.sqrtPrice, pos.tickLowerIndex, pos.tickUpperIndex, pullL)
+        const pulledSol = solIsA ? pulled.reqA : pulled.reqB
+        const pulledToro = solIsA ? pulled.reqB : pulled.reqA
+        const lowSt = getStartTickIndex(pos.tickLowerIndex, tickSpacing)
+        const highSt = getStartTickIndex(pos.tickUpperIndex, tickSpacing)
+        log(
+          `[rebalance] GAS-TANK REFILL FROM LP (0% loss!): nativeSOL=${(Number(nativeNow) / 1e9).toFixed(4)} < ${MIN_SOL_RESERVE} → ` +
+            `pulling ${(Number(pulledSol) / 1e9).toFixed(3)} SOL + ${(Number(pulledToro) / 1e9).toFixed(3)} toroSOL from LP`,
+        )
+        await simulateOrSendTx(
+          conn,
+          [
+            createAssociatedTokenAccountIdempotentInstruction(manager.publicKey, wsolAta, manager.publicKey, WSOL_MINT, TOKEN_PROGRAM),
+            ixDecreaseLiquidityV2({
+              whirlpool: whirlpoolPk,
+              tokenProgramA,
+              tokenProgramB,
+              positionAuthority: manager.publicKey,
+              position: positionPk,
+              positionTokenAccount: positionTokenAta,
+              tokenMintA: mintA,
+              tokenMintB: mintB,
+              tokenOwnerAccountA: ownerAtaA,
+              tokenOwnerAccountB: ownerAtaB,
+              tokenVaultA: wp.tokenVaultA,
+              tokenVaultB: wp.tokenVaultB,
+              tickArrayLower: deriveTickArrayPda(whirlpoolPk, lowSt),
+              tickArrayUpper: deriveTickArrayPda(whirlpoolPk, highSt),
+              liquidityAmount: pullL,
+              tokenMinA: 0n,
+              tokenMinB: 0n,
+            }),
+            ixWithdrawWithheldFromAccounts({
+              mint,
+              destination: toroAta,
+              authority: manager.publicKey,
+              sources: [toroAta],
+            }),
+            createCloseAccountInstruction(wsolAta, manager.publicKey, manager.publicKey, [], TOKEN_PROGRAM),
+          ],
+          manager,
+          [],
+          { cuLimit: 120_000, cuPriceMicroLamports: PRIO_FEE, dryRun: DRY_RUN, label: 'rebalance:refill-native-gas-from-lp' },
+        )
+        lastGasRefillMs = Date.now()
         return true
       }
     }
