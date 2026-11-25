@@ -307,7 +307,7 @@ async function main() {
   let lastUsdcRepositionMs = 0
   let lastIdleRedeemMs = 0
 
-  log(`=== 03_keeper_service v2.38 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
+  log(`=== 03_keeper_service v2.39 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
   log(`pool=${whirlpoolPk.toBase58()} | pos=${positionPk.toBase58()} | mint=${mint.toBase58()}`)
   log(
     `band=[${BAND_LOW_MULT}x,${BAND_HIGH_MULT}x] | idle=${MULETA_IDLE_MS / 1000}s | ` +
@@ -977,6 +977,55 @@ async function main() {
     const lpSol = solIsA ? posAmts.reqA : posAmts.reqB
     const lpToro = solIsA ? posAmts.reqB : posAmts.reqA
 
+    // -1) REDEEM DEAD IDLE WALLET toroSOL FIRST (before LP→SOL→BOOST consumes ReserveStake surplus!):
+    //     1) True emergency refill ONLY if native SOL dips below MIN_SOL_RESERVE (0.18 SOL) — caps top-up to ~0.26 SOL.
+    //     2) Normal fast recycle whenever idle wallet toroSOL >= 0.15 & ReserveStake has surplus above 0.30 SOL cushion.
+    //     Decoupled 30s cooldown, zero Orca touch — ensures 99%+ of capital stays earning in concentrated L!
+    const lowNativeReserve = nativeNow < resLam
+    if (Date.now() - lastIdleRedeemMs >= 30_000 && toroWallet.spendable >= 150_000_000n) {
+      const keepInWallet = lowNativeReserve
+        ? 20_000_000n
+        : lpToro < 1_000_000_000n
+          ? 1_000_000_000n - lpToro
+          : 20_000_000n
+      const minRedeem = lowNativeReserve ? 60_000_000n : 120_000_000n
+      const emergTargetLam = resLam + 80_000_000n - nativeNow
+      const emergTokensNeed =
+        lowNativeReserve && poolState.totalLamports > 0n
+          ? (emergTargetLam * poolState.poolTokenSupply) / poolState.totalLamports + 10_000_000n
+          : toroWallet.spendable
+      const rawExcess = toroWallet.spendable > keepInWallet + minRedeem ? toroWallet.spendable - keepInWallet : 0n
+      const rawToRedeem = lowNativeReserve && rawExcess > emergTokensNeed ? emergTokensNeed : rawExcess
+      const resCap = lowNativeReserve ? maxEmergResTokens : maxResTokens
+      const toRedeem = rawToRedeem < resCap ? rawToRedeem : resCap
+      if (toRedeem >= minRedeem) {
+        log(
+          `[rebalance] ${lowNativeReserve ? 'reserve-refill' : 'ratio-aware'} redeem ${(Number(toRedeem) / 1e9).toFixed(4)} idle toroSOL → SOL ` +
+            `(nativeSOL=${(Number(nativeNow) / 1e9).toFixed(3)}, lpSOL=${(Number(lpSol) / 1e9).toFixed(2)}, lpToro=${(Number(lpToro) / 1e9).toFixed(2)})`,
+        )
+        await simulateOrSendTx(
+          conn,
+          [
+            ixWithdrawSol({
+              stakePool,
+              reserveStake: poolState.reserveStake,
+              burner: manager.publicKey,
+              burnerTokenAccount: toroAta,
+              recipientSol: manager.publicKey,
+              managerFeeAccount: poolState.managerFeeAccount,
+              poolMint: mint,
+              poolTokens: toRedeem,
+            }),
+          ],
+          manager,
+          [],
+          { cuLimit: 60_000, cuPriceMicroLamports: PRIO_FEE, dryRun: DRY_RUN, label: 'rebalance:withdraw-idle-toro' },
+        )
+        lastIdleRedeemMs = Date.now()
+        return true
+      }
+    }
+
     // 0) 1-TX ZERO-LOSS SCALE-INVARIANT LP→SOL→HIGHER-L SUPER-REBALANCER:
     //    Whenever toroSOL exceeds 34% of LP value (and > 1.15 toroSOL), adapts automatically to any LP TVL (3..50+ SOL) to:
     //      (a) tighten tickLower toward spot (withdrawing excess toroSOL),
@@ -1219,54 +1268,6 @@ async function main() {
         )
         ks.lastRebalanceMs = Date.now()
         saveKeeperState(ks)
-        return true
-      }
-    }
-
-    // Recycle idle toroSOL → SOL via net-0% WithdrawSol (decoupled 30s cooldown — zero Orca touch!):
-    //   1) True emergency refill ONLY if native SOL dips below MIN_SOL_RESERVE (0.18 SOL) — caps withdrawal to top up to ~0.26 SOL, preserving ReserveStake cushion!
-    //   2) Normal fast recycle whenever idle toroSOL >= 0.15 & ReserveStake has surplus above 0.30 SOL cushion!
-    const lowNativeReserve = nativeNow < resLam
-    if (Date.now() - lastIdleRedeemMs >= 30_000 && toroWallet.spendable >= 150_000_000n) {
-      const keepInWallet = lowNativeReserve
-        ? 20_000_000n
-        : lpToro < 1_000_000_000n
-          ? 1_000_000_000n - lpToro
-          : 20_000_000n
-      const minRedeem = lowNativeReserve ? 60_000_000n : 120_000_000n
-      const emergTargetLam = resLam + 80_000_000n - nativeNow
-      const emergTokensNeed =
-        lowNativeReserve && poolState.totalLamports > 0n
-          ? (emergTargetLam * poolState.poolTokenSupply) / poolState.totalLamports + 10_000_000n
-          : toroWallet.spendable
-      const rawExcess = toroWallet.spendable > keepInWallet + minRedeem ? toroWallet.spendable - keepInWallet : 0n
-      const rawToRedeem = lowNativeReserve && rawExcess > emergTokensNeed ? emergTokensNeed : rawExcess
-      const resCap = lowNativeReserve ? maxEmergResTokens : maxResTokens
-      const toRedeem = rawToRedeem < resCap ? rawToRedeem : resCap
-      if (toRedeem >= minRedeem) {
-        log(
-          `[rebalance] ${lowNativeReserve ? 'reserve-refill' : 'ratio-aware'} redeem ${(Number(toRedeem) / 1e9).toFixed(4)} idle toroSOL → SOL ` +
-            `(nativeSOL=${(Number(nativeNow) / 1e9).toFixed(3)}, lpSOL=${(Number(lpSol) / 1e9).toFixed(2)}, lpToro=${(Number(lpToro) / 1e9).toFixed(2)})`,
-        )
-        await simulateOrSendTx(
-          conn,
-          [
-            ixWithdrawSol({
-              stakePool,
-              reserveStake: poolState.reserveStake,
-              burner: manager.publicKey,
-              burnerTokenAccount: toroAta,
-              recipientSol: manager.publicKey,
-              managerFeeAccount: poolState.managerFeeAccount,
-              poolMint: mint,
-              poolTokens: toRedeem,
-            }),
-          ],
-          manager,
-          [],
-          { cuLimit: 60_000, cuPriceMicroLamports: PRIO_FEE, dryRun: DRY_RUN, label: 'rebalance:withdraw-idle-toro' },
-        )
-        lastIdleRedeemMs = Date.now()
         return true
       }
     }
