@@ -299,15 +299,17 @@ async function main() {
   const ownerAtaA = solIsA ? wsolAta : toroAta
   const ownerAtaB = solIsA ? toroAta : wsolAta
   // Optional secondary USDC / toroSOL cross-arb pool (mintA=USDC 6dec, mintB=toroSOL 9dec)
+  const primaryToroVaultPk = new PublicKey(solIsA ? dep.tokenVaultB! : dep.tokenVaultA!)
   const usdcWhirlpoolPk = dep.usdcWhirlpool ? new PublicKey(dep.usdcWhirlpool) : null
   const usdcPositionPk = dep.usdcPosition ? new PublicKey(dep.usdcPosition) : null
   const usdcPosTokenAta = dep.usdcPositionTokenAccount ? new PublicKey(dep.usdcPositionTokenAccount) : null
+  const usdcToroVaultPk = dep.usdcTokenVaultB ? new PublicKey(dep.usdcTokenVaultB) : null
   const usdcTickSpacing = dep.usdcTickSpacing ?? 64
   let lastUsdcSqrtStr = '0'
   let lastUsdcRepositionMs = 0
   let lastIdleRedeemMs = 0
 
-  log(`=== 03_keeper_service v2.39 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
+  log(`=== 03_keeper_service v2.40 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
   log(`pool=${whirlpoolPk.toBase58()} | pos=${positionPk.toBase58()} | mint=${mint.toBase58()}`)
   log(
     `band=[${BAND_LOW_MULT}x,${BAND_HIGH_MULT}x] | idle=${MULETA_IDLE_MS / 1000}s | ` +
@@ -349,13 +351,34 @@ async function main() {
       withheldInMint: bigint
       valPairs: { validatorStake: PublicKey; transientStake: PublicKey }[]
       reserveLamports: bigint
+      directWithheld?: { pubkey: PublicKey; withheld: bigint }[]
+      skipGpaIfCovered?: boolean
     },
   ): Promise<boolean> {
-    // Include accounts down to 0.0001 toroSOL so dust never strands across holders; sort largest-first
-    const allCandidates = (await findWithheldAccounts(conn, mint, 100_000n)).sort((a, b) =>
-      b.withheld > a.withheld ? 1 : b.withheld < a.withheld ? -1 : 0,
-    )
     const withheldInMint = snap ? snap.withheldInMint : (await fetchMintTransferFeeBps(conn, mint)).withheldInMint
+    const mintWithheldEff = withheldInMint >= 100_000n ? withheldInMint : 0n
+    const directList = (snap?.directWithheld ?? []).filter((d) => d.withheld >= 100_000n)
+    const directTotal = directList.reduce((s, d) => s + d.withheld, 0n) + mintWithheldEff
+
+    // Zero-lag fast path: on reactive post-swap/post-snipe ticks, sweep confirmed pool vaults + manager ATA directly
+    // from the atomic tick batch (ZERO getProgramAccounts lag & ~80% fewer GPA RPC calls!), while periodic BURN_TICK_MS
+    // sweeps still run full getProgramAccounts AND merge direct vault reads so no external holder or vault is ever missed!
+    let allCandidates: { pubkey: PublicKey; withheld: bigint }[]
+    if (snap?.skipGpaIfCovered && !force && directTotal >= MIN_CLAIM_ATOMS) {
+      allCandidates = [...directList].sort((a, b) => (b.withheld > a.withheld ? 1 : b.withheld < a.withheld ? -1 : 0))
+    } else {
+      const gpaCandidates = await findWithheldAccounts(conn, mint, 100_000n)
+      const merged = new Map<string, { pubkey: PublicKey; withheld: bigint }>()
+      for (const c of gpaCandidates) merged.set(c.pubkey.toBase58(), { pubkey: c.pubkey, withheld: c.withheld })
+      for (const d of directList) {
+        const k = d.pubkey.toBase58()
+        const prev = merged.get(k)
+        if (!prev || d.withheld > prev.withheld) merged.set(k, d)
+      }
+      allCandidates = Array.from(merged.values()).sort((a, b) =>
+        b.withheld > a.withheld ? 1 : b.withheld < a.withheld ? -1 : 0,
+      )
+    }
     const poolState = snap ? snap.poolState : await fetchStakePoolState(conn, stakePool)
     const epoch = snap ? snap.curEpoch : (await conn.getEpochInfo('confirmed')).epoch
     const reserveLamports = snap ? snap.reserveLamports : BigInt(await conn.getBalance(poolState.reserveStake, 'confirmed'))
@@ -369,7 +392,7 @@ async function main() {
     // Take top 12 largest accounts for single-tx ~49k-CU atomic path (scales cleanly to 1,000+ holders!)
     const candidates = allCandidates.slice(0, 12)
     const totalCandidateWithheld = candidates.reduce((s, c) => s + c.withheld, 0n)
-    const sweptTotal = totalCandidateWithheld + (withheldInMint >= 100_000n ? withheldInMint : 0n)
+    const sweptTotal = totalCandidateWithheld + mintWithheldEff
 
     if (sweptTotal < MIN_CLAIM_ATOMS && !force && !needsEpochCrank) {
       ks.lastBurnMs = Date.now()
@@ -421,7 +444,7 @@ async function main() {
           budget -= toRedeem
         }
       }
-      if (budget > 100_000n) {
+      if (budget >= 10_000n) {
         burnedAtoms = budget
         atomicIxs.push(
           ixBurnChecked2022({ account: toroAta, mint, authority: manager.publicKey, amount: burnedAtoms }),
@@ -1805,7 +1828,8 @@ async function main() {
         saveKeeperState(ks)
       }
 
-      // Atomic 2-RPC tick snapshot (11–13 accounts in 1 batch + epochInfo → ZERO torn reads, dual-pool + oracle + validator + reserve aware!)
+      // Atomic 2-RPC tick snapshot (12–15 accounts in 1 batch + epochInfo → ZERO torn reads, zero-lag vault withholding!)
+      const hasUsdcPool = Boolean(usdcWhirlpoolPk && usdcPositionPk)
       const batchKeys = [
         whirlpoolPk,
         positionPk,
@@ -1818,13 +1842,31 @@ async function main() {
         reserveStakePk,
         SOL_USDC_ORACLE_POOL,
         usdcAta,
-        ...(usdcWhirlpoolPk && usdcPositionPk ? [usdcWhirlpoolPk, usdcPositionPk] : []),
+        primaryToroVaultPk,
+        ...(hasUsdcPool ? [usdcWhirlpoolPk!, usdcPositionPk!] : []),
+        ...(hasUsdcPool && usdcToroVaultPk ? [usdcToroVaultPk] : []),
       ]
       const [accs, { epoch: curEpoch }] = await Promise.all([
         conn.getMultipleAccountsInfo(batchKeys, 'confirmed'),
         conn.getEpochInfo('confirmed'),
       ])
-      const [wpAcc, posAcc, spAcc, mintAcc, mgrAcc, wsolAcc, toroAcc, vlAcc, resAcc, oracleAcc, usdcAtaAcc, usdcWpAcc, usdcPosAcc] = accs
+      const [
+        wpAcc,
+        posAcc,
+        spAcc,
+        mintAcc,
+        mgrAcc,
+        wsolAcc,
+        toroAcc,
+        vlAcc,
+        resAcc,
+        oracleAcc,
+        usdcAtaAcc,
+        primToroVaultAcc,
+        usdcWpAcc,
+        usdcPosAcc,
+        usdcToroVaultAcc,
+      ] = accs
       if (!wpAcc || !posAcc || !spAcc || !mintAcc) throw new Error('missing core pool/mint account')
       const wp = parseWhirlpool(wpAcc.data)
       const pos = parsePosition(posAcc.data)
@@ -1971,19 +2013,36 @@ async function main() {
           `ticks=[${pos.tickLowerIndex}..${wp.tickCurrentIndex}..${pos.tickUpperIndex}] arb=[${thresholds.burnArbBreakEven.toFixed(4)},${thresholds.mintArbBreakEven.toFixed(4)}]`,
       )
 
-      // 0. Instant epoch-rollover crank (curEpoch + validator list + reserve balance already fetched in parallel above!)
+      // 0. Instant epoch-rollover crank (curEpoch + validator list + reserve + vault withholdings already fetched in parallel!)
       const desiredFee = computeDesiredFee(spot, poolState.navSolPerToken)
-      const burnSnap = { poolState, curEpoch, withheldInMint, valPairs, reserveLamports }
+      const primVaultWithheld = parseTokenBalanceAndWithheld(primToroVaultAcc?.data).withheld
+      const usdcVaultWithheld = parseTokenBalanceAndWithheld(usdcToroVaultAcc?.data).withheld
+      const directWithheld: { pubkey: PublicKey; withheld: bigint }[] = []
+      if (primVaultWithheld >= 100_000n) directWithheld.push({ pubkey: primaryToroVaultPk, withheld: primVaultWithheld })
+      if (usdcToroVaultPk && usdcVaultWithheld >= 100_000n) {
+        directWithheld.push({ pubkey: usdcToroVaultPk, withheld: usdcVaultWithheld })
+      }
+      if (toroSnap.withheld >= 100_000n) directWithheld.push({ pubkey: toroAta, withheld: toroSnap.withheld })
+      const periodicBurnDue = Date.now() - ks.lastBurnMs >= BURN_TICK_MS
+      const burnSnap = {
+        poolState,
+        curEpoch,
+        withheldInMint,
+        valPairs,
+        reserveLamports,
+        directWithheld,
+        skipGpaIfCovered: !periodicBurnDue,
+      }
       const walletSnap = { nativeNow: nativeLamports, wsolWallet: wsolSnap, toroWallet: toroSnap, reserveLamports }
       if (Number(poolState.lastUpdateEpoch) < curEpoch) {
         log(`[epoch-crank] Epoch ${curEpoch} rolled — cranking!`)
-        await runBurnLoop(true, wp.feeRate, desiredFee, burnSnap)
+        await runBurnLoop(true, wp.feeRate, desiredFee, { ...burnSnap, skipGpaIfCovered: false })
         await sleep(2000)
         continue
       }
 
-      // 1. Atomic Burn-Loop + Fee Snap FIRST (sweeps BOTH SOL/toroSOL and USDC/toroSOL cross-arb trades instantly!)
-      if (priceMoved || usdcPriceMoved || Date.now() - ks.lastBurnMs >= BURN_TICK_MS) {
+      // 1. Atomic Burn-Loop + Fee Snap FIRST (sweeps BOTH SOL/toroSOL and USDC/toroSOL cross-arb trades with ZERO GPA lag!)
+      if (priceMoved || usdcPriceMoved || periodicBurnDue || directWithheld.reduce((s, d) => s + d.withheld, 0n) >= MIN_CLAIM_ATOMS) {
         if (usdcPriceMoved && !priceMoved) log(`[watch] USDC/toroSOL CROSS-ARB TRADE! Sweeping & burning T22 fees immediately!`)
         const burned = await runBurnLoop(false, wp.feeRate, desiredFee, burnSnap)
         if (burned) {

@@ -15,6 +15,7 @@
 | **Secondary Orca Whirlpool (`USDC / toroSOL`, `ts=64`, `0.30%` fee)** | [`559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3`](https://www.geckoterminal.com/solana/pools/559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3) |
 | **Orca `WhirlpoolsConfig` (25% Protocol Fee Rake)** | [`2JFwRaPCGHEaMKBqHWzAx4bZS8ZRQ9GohUzG3fKYB52Z`](https://solscan.io/account/2JFwRaPCGHEaMKBqHWzAx4bZS8ZRQ9GohUzG3fKYB52Z) |
 
+- **Live On-Chain Receipts**: [`RECEIPTS.md`](./RECEIPTS.md) · [`receipts.json`](./receipts.json) (verifiable slot, NAV, Helius 0% stake accounts, burn totals & Solscan tx proofs)
 - **Trade on Jupiter**: [jup.ag/swap/SOL-Gmd2K22WVRjhMH7eFfAWNa2y782zKSgHcgd8Gd457Mzt](https://jup.ag/swap/SOL-Gmd2K22WVRjhMH7eFfAWNa2y782zKSgHcgd8Gd457Mzt)
 - **Live Charts (GeckoTerminal)**: [toroSOL / SOL](https://www.geckoterminal.com/solana/pools/3m5V1UfeYiFUiMRQxvdZQv6kktUcSCHzbMa4HsVSt2Up) · [toroSOL / USDC](https://www.geckoterminal.com/solana/pools/559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3)
 
@@ -64,6 +65,8 @@
 | `src/05_deploy_usdc_pool.ts` | Deploy secondary `USDC/toroSOL` Orca Whirlpool (`ts=64`, 25% protocol rake) |
 | `src/03_keeper_service.ts` | 24/7 autonomous dual-pool Matador keeper daemon |
 | `src/04_knobs.ts` | Live cockpit CLI (`status`, `harvest-burn`, `collect-fees`, `set-orca-fee`, `set-uri`, `jup-check`) |
+| `src/06_receipts.ts` | Live on-chain proof generator (`bun run receipts` -> `RECEIPTS.md` + `receipts.json`) |
+| `RECEIPTS.md` / `receipts.json` | Independently verifiable mainnet receipts (NAV, Helius stake accounts, burn count, Solscan tx links) |
 | `toro.json` | Token-2022 off-chain metadata JSON |
 
 ---

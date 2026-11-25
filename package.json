@@ -7,7 +7,8 @@
     "deploy:orca": "bun run src/02_deploy_orca_pool.ts",
     "deploy:usdc": "bun run src/05_deploy_usdc_pool.ts",
     "keeper": "bun run src/03_keeper_service.ts",
-    "knobs": "bun run src/04_knobs.ts"
+    "knobs": "bun run src/04_knobs.ts",
+    "receipts": "bun run src/06_receipts.ts"
   },
   "dependencies": {
     "@solana/spl-token": "^0.4.14",
