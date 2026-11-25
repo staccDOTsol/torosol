@@ -1,6 +1,6 @@
 # toroSOL On-Chain Receipts
 
-Independently verifiable Solana mainnet proof snapshot generated directly from live RPC state at **slot `473857776`** (`2026-11-25T19:07:46.764Z`).
+Independently verifiable Solana mainnet proof snapshot generated directly from live RPC state at **slot `473859292`** (`2026-11-25T19:13:12.165Z`).
 Machine-readable JSON: [`receipts.json`](./receipts.json).
 
 ---
@@ -23,12 +23,12 @@ Machine-readable JSON: [`receipts.json`](./receipts.json).
 
 | Metric | Live Mainnet Value |
 |---|---|
-| **On-Chain NAV Floor** | **`1.199290 SOL / toroSOL`** (**`+19.93%`** in SOL since `1.000000` launch) |
-| **Total SOL Backing (TVL)** | `5.330908 SOL` (`1.3292 SOL` instant ReserveStake + `4.0033 SOL` Helius 0% staked) |
-| **Circulating Supply** | `4.445054 toroSOL` |
-| **Total Permanently Burned** | **`1.0708 toroSOL`** (`0.9838` keeper + `0.0870` init) |
-| **Epoch & Helius Yield ETA** | Epoch `1096` (`89.3%`) · Epoch `1097` in `~5.1h` |
-| **Matador Arb Engine** | `228 waves · 212 sniped / 8 unsniped (96.4% all-time)` |
+| **On-Chain NAV Floor** | **`1.203431 SOL / toroSOL`** (**`+20.34%`** in SOL since `1.000000` launch) |
+| **Total SOL Backing (TVL)** | `6.438493 SOL` (`2.4368 SOL` instant ReserveStake + `4.0033 SOL` Helius 0% staked) |
+| **Circulating Supply** | `5.350116 toroSOL` |
+| **Total Permanently Burned** | **`1.0893 toroSOL`** (`1.0023` keeper + `0.0870` init) |
+| **Epoch & Helius Yield ETA** | Epoch `1096` (`89.7%`) · Epoch `1097` in `~5.0h` |
+| **Matador Arb Engine** | `231 waves · 215 sniped / 8 unsniped (96.4% all-time)` |
 
 ### Native Helius 0% Validator Stake Accounts
 
@@ -42,8 +42,8 @@ Machine-readable JSON: [`receipts.json`](./receipts.json).
 
 | Pool | Address | Live Spot | Depth (Bid / Ask) | Liquidity (`L`) | Fees |
 |---|---|---|---|---|---|
-| **SOL / toroSOL** (`ts=8`) | [`3m5V1UfeYiFUiMRQxvdZQv6kktUcSCHzbMa4HsVSt2Up`](https://www.geckoterminal.com/solana/pools/3m5V1UfeYiFUiMRQxvdZQv6kktUcSCHzbMa4HsVSt2Up) | `1.227151 SOL` (`+2.32%` vs NAV) | `3.1315 SOL / 0.7862 toroSOL` | `1028.4B` | `0.30%` (`25%` proto rake) |
-| **USDC / toroSOL** (`ts=64`) | [`559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3`](https://www.geckoterminal.com/solana/pools/559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3) | `$85.46` (SOL `$69.92`) | `$38.61 USDC / 0.169 toroSOL` | `1676068152` | `0.30%` (`25%` proto rake) |
+| **SOL / toroSOL** (`ts=8`) | [`3m5V1UfeYiFUiMRQxvdZQv6kktUcSCHzbMa4HsVSt2Up`](https://www.geckoterminal.com/solana/pools/3m5V1UfeYiFUiMRQxvdZQv6kktUcSCHzbMa4HsVSt2Up) | `1.227812 SOL` (`+2.03%` vs NAV) | `2.3692 SOL / 0.8807 toroSOL` | `708.6B` | `0.30%` (`25%` proto rake) |
+| **USDC / toroSOL** (`ts=64`) | [`559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3`](https://www.geckoterminal.com/solana/pools/559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3) | `$86.11` (SOL `$70.05`) | `$40.48 USDC / 0.1472 toroSOL` | `1676068152` | `0.30%` (`25%` proto rake) |
 
 ---
 
@@ -51,21 +51,21 @@ Machine-readable JSON: [`receipts.json`](./receipts.json).
 
 | UTC Timestamp | Action | On-Chain Result | Solscan Receipt |
 |---|---|---|---|
+| `2026-11-25 19:12:33 UTC` | `burn:atomic-sweep-recoup-burn-crank` | swept 0.03389 / burned 0.01688 toroSOL · NAV 1.199646 → 1.203431 | [`5owmKcCQYrJTem...`](https://solscan.io/tx/5owmKcCQYrJTemNLGFGp8Sch3uzxxv7QWCfyrMygmBSeSNLKrLZLi5cdw4U3kF6GVo9xNAVMuN5az87HcCoygqb1) |
+| `2026-11-25 19:12:29 UTC` | `muleta:1tx-walk+anchor[-2080,-1992]` | Wave #231 · 1.22790 -> 1.22929 · L=709B | [`5TwE9CQLpgTgQk...`](https://solscan.io/tx/5TwE9CQLpgTgQkH8tnDZNLVwvDEJzVFcKWCK4JkvQVE8v9RknK4xYenCTu5wXih6HQZ2sMZvxZMMyzX1woDqEmSd) |
+| `2026-11-25 19:11:17 UTC` | `collect:lp+proto(est=0.00776+redeem=0.086)` | collect:lp+proto(est=0.00776+redeem=0.086) | [`5YPn4yzsNhUYtq...`](https://solscan.io/tx/5YPn4yzsNhUYtq3BAnhQShKXQydxAGc6Wgzt2AMkZ9aPn9Da1KGwmnKiXeqgzy6DCoMv2V1Nm4Rp1WE9JLdhYPps) |
+| `2026-11-25 19:10:33 UTC` | `rebalance:atomic-lp-to-sol-boost` | L 687B→1020B · recycled 0.743 toroSOL -> +0.89 SOL | [`Zi4ythkEnC1zLa...`](https://solscan.io/tx/Zi4ythkEnC1zLaJmbLE1GsrnM7GUo4MQeqmw9Q8B5BhvHz74vVs6wcjCKPyxAvnAkhSF9pMBepEcKkKLhXbizw1) |
+| `2026-11-25 19:10:30 UTC` | `burn:atomic-sweep-recoup-burn-crank` | swept 0.00695 / burned 0.00035 toroSOL · NAV 1.199574 → 1.199646 | [`3gvuAXBtDexkwd...`](https://solscan.io/tx/3gvuAXBtDexkwdfPSwmtrDNS5yqbL3AToi2kbdvUoHufZt5GsZRob3UH6fzodWS55fDSCeePzjNdUH4Y74t8vxm3) |
+| `2026-11-25 19:10:27 UTC` | `rebalance:withdraw-idle-toro` | redeemed 0.1823 idle toroSOL -> SOL | [`4W9nFDeKBnRgx6...`](https://solscan.io/tx/4W9nFDeKBnRgx6kAf3qWkf9fepYmaTiZHHrjSG27fGT2NGNC9RqX8QQyKaynMQ1bwv9198z5wZQ7mURWJ2CXgMtJ) |
+| `2026-11-25 19:10:23 UTC` | `burn:atomic-sweep-recoup-burn-crank` | swept 0.00761 / burned 0.00038 toroSOL · NAV 1.199494 → 1.199574 | [`3a41MM6wjHxgCn...`](https://solscan.io/tx/3a41MM6wjHxgCntp7rvyNsZguybs7zDT59R6YLiKxUdLyWweyYVCmdW4oMUaAVLXU4MNP4QqksgKSQhso7WNpcSm) |
+| `2026-11-25 19:10:20 UTC` | `muleta:1tx-walk+anchor[-2096,-1992]` | Wave #230 · 1.22758 -> 1.22913 · L=687B | [`4RaeG3JBsRXUJ8...`](https://solscan.io/tx/4RaeG3JBsRXUJ8nwFhdu4KF1yyqDVTzZeY1DpJHwNGsq14c5d8wtbeiohfqQ8VcA8HEd4utkdEqACuKBUq9YjhZo) |
+| `2026-11-25 19:09:56 UTC` | `burn:atomic-sweep-recoup-burn-crank` | swept 0.00805 / burned 0.00040 toroSOL · NAV 1.199402 → 1.199494 | [`XWYnGuiWcDTkkK...`](https://solscan.io/tx/XWYnGuiWcDTkkKy3fP133ekUMCGBDvau2SUcuoBB4ZP8GxECzv57cXeG49jUdjh2sj1n4NUhTo1QgvrDaUJEpAd) |
+| `2026-11-25 19:08:12 UTC` | `burn:atomic-sweep-recoup-burn-crank` | swept 0.00918 / burned 0.00046 toroSOL · NAV 1.199290 → 1.199402 | [`2VpokbfrkNRP5R...`](https://solscan.io/tx/2VpokbfrkNRP5RuUe5kpizo9nxoTQpFTTQLbS2NkLwDWFKq4hAywMUzjUw3N64p1MyZ7pdSv4s5xh5M2QTvhQXMM) |
+| `2026-11-25 19:08:08 UTC` | `muleta:1tx-walk+anchor[-2080,-1992]` | Wave #229 · 1.22715 -> 1.22892 · L=829B | [`42E9hN1WojwY1s...`](https://solscan.io/tx/42E9hN1WojwY1sicuWciZc6csaRQD7UuNyFeMprqEGPdfyeNagt3TXXMbpzksTGhx4KW3hS8x4jUTtmHSQgjSv7M) |
 | `2026-11-25 19:06:15 UTC` | `collect:lp+proto(est=0.00402+redeem=0.051)` | collect:lp+proto(est=0.00402+redeem=0.051) | [`P32crSPW48s6x1...`](https://solscan.io/tx/P32crSPW48s6x1rQtFz78KSfWCxf8jU5m1o4TQtxDzw9YgZt6WwnR9s3CX2qxMPNiSSMm6b4vm1aqT6iyzpG9C1) |
 | `2026-11-25 19:06:12 UTC` | `rebalance:atomic-lp-to-sol-boost` | L 744B→1028B · recycled 0.536 toroSOL -> +0.64 SOL | [`5HJ5AjZZrhkf7K...`](https://solscan.io/tx/5HJ5AjZZrhkf7K3ZpLHv6dwXEQ5kUmQmgcFLBjdDkE9Gb5eEr6sySTbRNGUKa4MRhkDnws17YmYTCuddCEG6onEi) |
 | `2026-11-25 19:06:09 UTC` | `rebalance:withdraw-idle-toro` | idle toroSOL -> SOL | [`5cTekdTXj2yUpK...`](https://solscan.io/tx/5cTekdTXj2yUpKDkDd8Kw55nbT6mnyxB2NpjcCtwg11Yd7QBoYghxQwumgFgMptHP8amWyopvTFc7akBFJgapnSA) |
 | `2026-11-25 19:06:02 UTC` | `muleta:1tx-walk+anchor[-2088,-1992]` | Wave #228 · 1.22722 -> 1.22881 · L=744B | [`Gz24VSbYih8ucg...`](https://solscan.io/tx/Gz24VSbYih8ucgxM8RevvExU5nNfy2CePqtirGw5Q9yA6V9Hu2Guyf9rzMsjkiT2k5zQez7LjWDzbfoz98YLgjz) |
-| `2026-11-25 19:03:57 UTC` | `burn:atomic-sweep-recoup-burn-crank` | swept 0.00927 / burned 0.00046 toroSOL · NAV 1.199065 → 1.199182 | [`39MpwdLmGh5DAL...`](https://solscan.io/tx/39MpwdLmGh5DALCBqfpMrEvnQh7MxVyU4cTS8gA2HFyASa6MhMuTDbSFyio6cqtgPdrK2Gqh3p75ZZqEGHMVBzHE) |
-| `2026-11-25 19:03:53 UTC` | `muleta:1tx-walk+anchor[-2072,-1992]` | Wave #227 · 1.22711 -> 1.22869 · L=836B | [`4VCamB6GQoyot5...`](https://solscan.io/tx/4VCamB6GQoyot5q8P5BDkBf2LWDbGbo6nFFZDAHe1BFqQpqwtNRuFEAX83HrjB9KPeboyE8goWwAC5TmgMRKrRLP) |
-| `2026-11-25 19:01:58 UTC` | `rebalance:atomic-lp-to-sol-boost` | L 794B→1122B · recycled 0.572 toroSOL -> +0.69 SOL | [`dcNXCnLYUnnrCE...`](https://solscan.io/tx/dcNXCnLYUnnrCEwEqiEcDxmYaPniEzTd1WKC2RPoyBjK9LGP9HvQjKJaikY7r3bYRvHhjZYns61vphVvfnvJa6d) |
-| `2026-11-25 19:01:55 UTC` | `rebalance:withdraw-idle-toro` | redeemed 0.2475 idle toroSOL -> SOL | [`33d6m4do3rSLdM...`](https://solscan.io/tx/33d6m4do3rSLdMDtYvgPNegugMcGBND2PXDTzxGca6r3qbjiBRiD3WLbUKe9J7ssXM4jdxqDYXf8HQMK3WfwQ1Tj) |
-| `2026-11-25 19:01:52 UTC` | `burn:atomic-sweep-recoup-burn-crank` | swept 0.00877 / burned 0.00044 toroSOL · NAV 1.198962 → 1.199065 | [`5HotYGA4aLCVzX...`](https://solscan.io/tx/5HotYGA4aLCVzX3K7hrvz5qHTovKKBYNoUGy7Ni4SKJAhVnowq8DEUzP4ieFx5YHSxxYiX2v3obXZJDCbYcyUq9g) |
-| `2026-11-25 19:01:48 UTC` | `muleta:1tx-walk+anchor[-2080,-1992]` | Wave #226 · 1.22699 -> 1.22858 · L=794B | [`2hn4XGgfE6hr6L...`](https://solscan.io/tx/2hn4XGgfE6hr6LKhVD3bDUqqmPuFPtd5hExMqTMTmuv5F4sKu2E4EMM8oS733P7Tq1cJs4nXqDTTmCUFP7e6LPEP) |
-| `2026-11-25 19:01:06 UTC` | `collect:lp+proto(est=0.00334)` | collect:lp+proto(est=0.00334) | [`4ipFKhrJaan5Sb...`](https://solscan.io/tx/4ipFKhrJaan5SbDD5PZjXfKrxPGz3UFMVb9yob3PhweyakBx4VhHQv3Qy7CyBeA6BncnrnuHCyL3QinjEnFeaQHt) |
-| `2026-11-25 18:59:42 UTC` | `rebalance:withdraw-idle-toro` | redeemed 0.2625 idle toroSOL -> SOL | [`5jqCMj9yc3gw6G...`](https://solscan.io/tx/5jqCMj9yc3gw6GbN1iXSPbaRZ8rEUTsuxqsTp3YN66JRGLvFTdkj4MEz5smj47t7sMrmQj6AZ26yzjXtfiHwbrQ6) |
-| `2026-11-25 18:59:39 UTC` | `burn:atomic-sweep-recoup-burn-crank` | swept 0.00943 / burned 0.00047 toroSOL · NAV 1.198847 → 1.198962 | [`5hmg8VSHtgsELK...`](https://solscan.io/tx/5hmg8VSHtgsELKKyY4uGwBuxpYcLXmNQtXP7cHUJ2r6vF5hedugk3Nj6EKzUoyQnAy9y65NkYKNCedHqRyJSg6cT) |
-| `2026-11-25 18:59:35 UTC` | `muleta:1tx-walk+anchor[-2072,-1992]` | Wave #225 · 1.22688 -> 1.22847 · L=850B | [`4KPiG1Pe2fmxg6...`](https://solscan.io/tx/4KPiG1Pe2fmxg6q6eDWc6JP2qdNgYf6SwH5oRfmr4e6nkw3TJisrcGJ3jneXnRuJMPEcj2oN2yPYqt6WBJJdStXC) |
-| `2026-11-25 18:57:29 UTC` | `rebalance:atomic-lp-to-sol-boost` | L 834B→1085B · recycled 0.601 toroSOL -> +0.72 SOL | [`3dAwVAyVL8omjP...`](https://solscan.io/tx/3dAwVAyVL8omjP8Z9N6gpLdJ9JwDC8ijtaK3RpQgc8GmgSUyKPwWdDjFiYpLArgFZAeoL394AyLHbroxpwRutwUS) |
 
 ---
 

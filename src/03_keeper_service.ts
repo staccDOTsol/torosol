@@ -308,8 +308,9 @@ async function main() {
   let lastUsdcSqrtStr = '0'
   let lastUsdcRepositionMs = 0
   let lastIdleRedeemMs = 0
+  let lastFullGpaBurnMs = 0
 
-  log(`=== 03_keeper_service v2.40 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
+  log(`=== 03_keeper_service v2.41 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
   log(`pool=${whirlpoolPk.toBase58()} | pos=${positionPk.toBase58()} | mint=${mint.toBase58()}`)
   log(
     `band=[${BAND_LOW_MULT}x,${BAND_HIGH_MULT}x] | idle=${MULETA_IDLE_MS / 1000}s | ` +
@@ -368,6 +369,7 @@ async function main() {
       allCandidates = [...directList].sort((a, b) => (b.withheld > a.withheld ? 1 : b.withheld < a.withheld ? -1 : 0))
     } else {
       const gpaCandidates = await findWithheldAccounts(conn, mint, 100_000n)
+      lastFullGpaBurnMs = Date.now()
       const merged = new Map<string, { pubkey: PublicKey; withheld: bigint }>()
       for (const c of gpaCandidates) merged.set(c.pubkey.toBase58(), { pubkey: c.pubkey, withheld: c.withheld })
       for (const d of directList) {
@@ -2023,7 +2025,8 @@ async function main() {
         directWithheld.push({ pubkey: usdcToroVaultPk, withheld: usdcVaultWithheld })
       }
       if (toroSnap.withheld >= 100_000n) directWithheld.push({ pubkey: toroAta, withheld: toroSnap.withheld })
-      const periodicBurnDue = Date.now() - ks.lastBurnMs >= BURN_TICK_MS
+      const periodicFullGpaDue = Date.now() - lastFullGpaBurnMs >= BURN_TICK_MS
+      const isOrganicBuy = (priceMoved && spot > prevSpotRaw) || usdcPriceMoved
       const burnSnap = {
         poolState,
         curEpoch,
@@ -2031,7 +2034,7 @@ async function main() {
         valPairs,
         reserveLamports,
         directWithheld,
-        skipGpaIfCovered: !periodicBurnDue,
+        skipGpaIfCovered: !periodicFullGpaDue && !isOrganicBuy,
       }
       const walletSnap = { nativeNow: nativeLamports, wsolWallet: wsolSnap, toroWallet: toroSnap, reserveLamports }
       if (Number(poolState.lastUpdateEpoch) < curEpoch) {
@@ -2041,8 +2044,13 @@ async function main() {
         continue
       }
 
-      // 1. Atomic Burn-Loop + Fee Snap FIRST (sweeps BOTH SOL/toroSOL and USDC/toroSOL cross-arb trades with ZERO GPA lag!)
-      if (priceMoved || usdcPriceMoved || periodicBurnDue || directWithheld.reduce((s, d) => s + d.withheld, 0n) >= MIN_CLAIM_ATOMS) {
+      // 1. Atomic Burn-Loop + Fee Snap FIRST (instant vault sweep on snipes/sells + full GPA on organic buys & every BURN_TICK_MS!)
+      if (
+        priceMoved ||
+        usdcPriceMoved ||
+        periodicFullGpaDue ||
+        directWithheld.reduce((s, d) => s + d.withheld, 0n) >= MIN_CLAIM_ATOMS
+      ) {
         if (usdcPriceMoved && !priceMoved) log(`[watch] USDC/toroSOL CROSS-ARB TRADE! Sweeping & burning T22 fees immediately!`)
         const burned = await runBurnLoop(false, wp.feeRate, desiredFee, burnSnap)
         if (burned) {
