@@ -106,7 +106,7 @@ const MIN_COLLECT_LAMPORTS = BigInt(process.env.MIN_COLLECT_LAMPORTS ?? '1000000
 const MAX_DAILY_BAIT_SOL = Number(process.env.MAX_DAILY_BAIT_SOL ?? '0.12')
 const MAX_EQUITY_DRAWDOWN_SOL = Number(process.env.MAX_EQUITY_DRAWDOWN_SOL ?? '0.35')
 const MIN_SOL_RESERVE = Number(process.env.MIN_SOL_RESERVE ?? '0.18')
-const BAND_LOW_MULT = Number(process.env.BAND_LOW_MULT ?? '1.015')
+const BAND_LOW_MULT = Number(process.env.BAND_LOW_MULT ?? '1.018') // 70-tick bid wall (+43% L & NAV/wave vs 1.015, still >=+1.8% above NAV!)
 const BAND_HIGH_MULT = Number(process.env.BAND_HIGH_MULT ?? '1.030')
 const DUST_MOVE_FILTER_BPS = Number(process.env.DUST_MOVE_FILTER_BPS ?? '8')
 const MIN_CLAIM_ATOMS = BigInt(process.env.MIN_CLAIM_ATOMS ?? '500000')
@@ -306,7 +306,7 @@ async function main() {
   let lastUsdcSqrtStr = '0'
   let lastUsdcRepositionMs = 0
 
-  log(`=== 03_keeper_service v2.35 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
+  log(`=== 03_keeper_service v2.36 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
   log(`pool=${whirlpoolPk.toBase58()} | pos=${positionPk.toBase58()} | mint=${mint.toBase58()}`)
   log(
     `band=[${BAND_LOW_MULT}x,${BAND_HIGH_MULT}x] | idle=${MULETA_IDLE_MS / 1000}s | ` +
@@ -605,7 +605,8 @@ async function main() {
     // Auto-compound: if idle toroSOL >= 0.05, atomically redeem excess (keeping 0.30 SOL liquid ReserveStake!) → native SOL in-tx!
     const rawRedeemExcess = toroSpendable >= 50_000_000n ? toroSpendable - 20_000_000n : 0n
     const maxResTokens = maxRedeemableTokens(reserveLamports, poolState, REBALANCE_RESERVE_FLOOR_LAMPORTS)
-    const redeemExcess = rawRedeemExcess < maxResTokens ? rawRedeemExcess : maxResTokens
+    const clampedRedeem = rawRedeemExcess < maxResTokens ? rawRedeemExcess : maxResTokens
+    const redeemExcess = clampedRedeem >= 20_000_000n ? clampedRedeem : 0n // Skip dust <0.02 toroSOL WithdrawSol (saves 20k CU!)
     if (redeemExcess > 0n) {
       ixs.push(
         ixWithdrawSol({
@@ -984,7 +985,7 @@ async function main() {
     const lpToroValSol = Number(lpToro) * poolState.navSolPerToken
     const lpTotalValSol = Number(lpSol) + lpToroValSol
     const lpToroShare = lpTotalValSol > 0 ? lpToroValSol / lpTotalValSol : 0
-    if (solIsA && lpToroShare > 0.34 && lpToro > 1_150_000_000n && maxResTokens >= 250_000_000n) {
+    if (solIsA && lpToroShare > 0.34 && lpToro > 1_150_000_000n && maxResTokens >= 180_000_000n) {
       // Tighten up to 2/3 of the way on Step 1 (smart hybrid maxAskTick = 9..16 ticks ask, zero double-floor SOL stranding,
       // AND capped so withdrawnToro fits inside ReserveStake's instant SOL liquidity → ZERO Custom:35!).
       const curBase = alignTickFloor(wp.tickCurrentIndex, tickSpacing)
@@ -1004,7 +1005,7 @@ async function main() {
         const withdrawnToro = posAmts.reqB > newAmts.reqB ? posAmts.reqB - newAmts.reqB : 0n
         const rawRedeem = (withdrawnToro * 999n) / 1000n
         const redeemTokens = rawRedeem < maxResTokens ? rawRedeem : maxResTokens
-        if (redeemTokens >= 200_000_000n) {
+        if (redeemTokens >= 150_000_000n) {
           const redeemedSol = (redeemTokens * poolState.totalLamports) / poolState.poolTokenSupply
           const newLowSt = getStartTickIndex(newTickLow, tickSpacing)
           const exLowSt = getStartTickIndex(pos.tickLowerIndex, tickSpacing)
