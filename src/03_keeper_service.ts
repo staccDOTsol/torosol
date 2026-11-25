@@ -307,7 +307,7 @@ async function main() {
   let lastUsdcRepositionMs = 0
   let lastIdleRedeemMs = 0
 
-  log(`=== 03_keeper_service v2.37 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
+  log(`=== 03_keeper_service v2.38 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
   log(`pool=${whirlpoolPk.toBase58()} | pos=${positionPk.toBase58()} | mint=${mint.toBase58()}`)
   log(
     `band=[${BAND_LOW_MULT}x,${BAND_HIGH_MULT}x] | idle=${MULETA_IDLE_MS / 1000}s | ` +
@@ -1224,17 +1224,23 @@ async function main() {
     }
 
     // Recycle idle toroSOL → SOL via net-0% WithdrawSol (decoupled 30s cooldown — zero Orca touch!):
-    //   1) Emergency reserve refill if native SOL dips below MIN_SOL_RESERVE + 0.10 SOL & we have >= 0.15 toroSOL
-    //   2) Normal fast recycle whenever idle toroSOL >= 0.15 (keeping 0.02 dust → 98%+ capital deployed in L!)
-    const lowNativeReserve = nativeNow < resLam + 100_000_000n
+    //   1) True emergency refill ONLY if native SOL dips below MIN_SOL_RESERVE (0.18 SOL) — caps withdrawal to top up to ~0.26 SOL, preserving ReserveStake cushion!
+    //   2) Normal fast recycle whenever idle toroSOL >= 0.15 & ReserveStake has surplus above 0.30 SOL cushion!
+    const lowNativeReserve = nativeNow < resLam
     if (Date.now() - lastIdleRedeemMs >= 30_000 && toroWallet.spendable >= 150_000_000n) {
       const keepInWallet = lowNativeReserve
         ? 20_000_000n
         : lpToro < 1_000_000_000n
           ? 1_000_000_000n - lpToro
           : 20_000_000n
-      const minRedeem = 120_000_000n
-      const rawToRedeem = toroWallet.spendable > keepInWallet + minRedeem ? toroWallet.spendable - keepInWallet : 0n
+      const minRedeem = lowNativeReserve ? 60_000_000n : 120_000_000n
+      const emergTargetLam = resLam + 80_000_000n - nativeNow
+      const emergTokensNeed =
+        lowNativeReserve && poolState.totalLamports > 0n
+          ? (emergTargetLam * poolState.poolTokenSupply) / poolState.totalLamports + 10_000_000n
+          : toroWallet.spendable
+      const rawExcess = toroWallet.spendable > keepInWallet + minRedeem ? toroWallet.spendable - keepInWallet : 0n
+      const rawToRedeem = lowNativeReserve && rawExcess > emergTokensNeed ? emergTokensNeed : rawExcess
       const resCap = lowNativeReserve ? maxEmergResTokens : maxResTokens
       const toRedeem = rawToRedeem < resCap ? rawToRedeem : resCap
       if (toRedeem >= minRedeem) {
