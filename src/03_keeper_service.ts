@@ -305,8 +305,9 @@ async function main() {
   const usdcTickSpacing = dep.usdcTickSpacing ?? 64
   let lastUsdcSqrtStr = '0'
   let lastUsdcRepositionMs = 0
+  let lastIdleRedeemMs = 0
 
-  log(`=== 03_keeper_service v2.36 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
+  log(`=== 03_keeper_service v2.37 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
   log(`pool=${whirlpoolPk.toBase58()} | pos=${positionPk.toBase58()} | mint=${mint.toBase58()}`)
   log(
     `band=[${BAND_LOW_MULT}x,${BAND_HIGH_MULT}x] | idle=${MULETA_IDLE_MS / 1000}s | ` +
@@ -963,7 +964,7 @@ async function main() {
   ): Promise<boolean> {
     // Keep a 100% lock-free runway for external arber bots during an active Muleta snipe window!
     if (ks.pendingWaveCheck && Date.now() - ks.pendingWaveSentMs < 90_000) return false
-    if (Date.now() - ks.lastRebalanceMs < 150_000) return false
+    const orcaRebalReady = Date.now() - ks.lastRebalanceMs >= 150_000
 
     const { toroWallet, wsolWallet, nativeNow, reserveLamports } = snap
     const maxResTokens = maxRedeemableTokens(reserveLamports, poolState, REBALANCE_RESERVE_FLOOR_LAMPORTS)
@@ -985,7 +986,7 @@ async function main() {
     const lpToroValSol = Number(lpToro) * poolState.navSolPerToken
     const lpTotalValSol = Number(lpSol) + lpToroValSol
     const lpToroShare = lpTotalValSol > 0 ? lpToroValSol / lpTotalValSol : 0
-    if (solIsA && lpToroShare > 0.34 && lpToro > 1_150_000_000n && maxResTokens >= 180_000_000n) {
+    if (orcaRebalReady && solIsA && lpToroShare > 0.34 && lpToro > 1_150_000_000n && maxResTokens >= 180_000_000n) {
       // Tighten up to 2/3 of the way on Step 1 (smart hybrid maxAskTick = 9..16 ticks ask, zero double-floor SOL stranding,
       // AND capped so withdrawnToro fits inside ReserveStake's instant SOL liquidity → ZERO Custom:35!).
       const curBase = alignTickFloor(wp.tickCurrentIndex, tickSpacing)
@@ -1160,7 +1161,7 @@ async function main() {
     //    If an organic whale buys out our entire ask wall (lpToro + wallet < 0.35 toroSOL & lpSol >= 2.50 SOL),
     //    atomically pull 25% of LP SOL → unwrap → mint fresh toroSOL at NAV (0% fee!) in ONE tx, locking in
     //    the +3..6% whale premium as pure SOL profit and letting maybeReposition immediately re-anchor both sides!
-    if (solIsA && lpToro + toroWallet.spendable < 350_000_000n && lpSol >= 2_500_000_000n && pos.liquidity > 0n) {
+    if (orcaRebalReady && solIsA && lpToro + toroWallet.spendable < 350_000_000n && lpSol >= 2_500_000_000n && pos.liquidity > 0n) {
       const pullL = pos.liquidity / 4n
       const pulled = computeAmountsForLiquidity(wp.sqrtPrice, pos.tickLowerIndex, pos.tickUpperIndex, pullL)
       const mintLamports = (pulled.reqA * 95n) / 100n
@@ -1222,11 +1223,11 @@ async function main() {
       }
     }
 
-    // Recycle idle toroSOL → SOL via net-0% WithdrawSol:
+    // Recycle idle toroSOL → SOL via net-0% WithdrawSol (decoupled 30s cooldown — zero Orca touch!):
     //   1) Emergency reserve refill if native SOL dips below MIN_SOL_RESERVE + 0.10 SOL & we have >= 0.15 toroSOL
     //   2) Normal fast recycle whenever idle toroSOL >= 0.15 (keeping 0.02 dust → 98%+ capital deployed in L!)
     const lowNativeReserve = nativeNow < resLam + 100_000_000n
-    if (toroWallet.spendable >= 150_000_000n) {
+    if (Date.now() - lastIdleRedeemMs >= 30_000 && toroWallet.spendable >= 150_000_000n) {
       const keepInWallet = lowNativeReserve
         ? 20_000_000n
         : lpToro < 1_000_000_000n
@@ -1259,16 +1260,14 @@ async function main() {
           [],
           { cuLimit: 60_000, cuPriceMicroLamports: PRIO_FEE, dryRun: DRY_RUN, label: 'rebalance:withdraw-idle-toro' },
         )
-        // Short 30s cooldown on lightweight idle-toro redeem so it never locks out LP→SOL→BOOST for 150s!
-        ks.lastRebalanceMs = Date.now() - 120_000
-        saveKeeperState(ks)
+        lastIdleRedeemMs = Date.now()
         return true
       }
     }
 
     // ONLY mint fresh toroSOL via SP12tWFx when organic buyers ACTUALLY drained our LP ask (lpToro < 1.10)
     // AND we have large idle SOL (> 1.80 SOL) — ZERO ping-pong!
-    if (totalIdleSol > 1_800_000_000n && lpToro + toroWallet.spendable < 1_100_000_000n) {
+    if (orcaRebalReady && totalIdleSol > 1_800_000_000n && lpToro + toroWallet.spendable < 1_100_000_000n) {
       // Mint ONLY enough SOL to restore ~1.8 toroSOL total ask, leaving the rest as SOL bid!
       const needToroSol = BigInt(Math.floor((1.8 - Number(lpToro + toroWallet.spendable) / 1e9) * poolState.navSolPerToken * 1e9))
       const mintSol = needToroSol < totalIdleSol / 2n ? needToroSol : totalIdleSol / 2n
