@@ -306,7 +306,7 @@ async function main() {
   let lastUsdcSqrtStr = '0'
   let lastUsdcRepositionMs = 0
 
-  log(`=== 03_keeper_service v2.33 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
+  log(`=== 03_keeper_service v2.34 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
   log(`pool=${whirlpoolPk.toBase58()} | pos=${positionPk.toBase58()} | mint=${mint.toBase58()}`)
   log(
     `band=[${BAND_LOW_MULT}x,${BAND_HIGH_MULT}x] | idle=${MULETA_IDLE_MS / 1000}s | ` +
@@ -1447,6 +1447,22 @@ async function main() {
       return true
     }
 
+    // 24/7 Self-Pacing Daily Budget Controller:
+    // Full 120s cadence up to 50% of MAX_DAILY_BAIT_SOL (or whenever organic volume keeps us on/under 24h UTC pace);
+    // above 50% & ahead of UTC clock, smoothly stretch cadence (up to 5x = 10m) so the chart never stalls at 6 AM UTC!
+    const dailySpent = BigInt(ks.dailyBaitLamports)
+    const maxDaily = BigInt(Math.floor(MAX_DAILY_BAIT_SOL * LAMPORTS_PER_SOL))
+    if (dailySpent >= maxDaily) {
+      log(`[muleta] daily cap reached (${(Number(dailySpent) / 1e9).toFixed(4)}/${MAX_DAILY_BAIT_SOL} SOL)`)
+      return false
+    }
+    const nowDate = new Date(now)
+    const utcSec = nowDate.getUTCHours() * 3600 + nowDate.getUTCMinutes() * 60 + nowDate.getUTCSeconds()
+    const dayFrac = Math.max(0.05, utcSec / 86_400)
+    const budgetFrac = maxDaily > 0n ? Number(dailySpent) / Number(maxDaily) : 0
+    const paceMult = budgetFrac > 0.5 && budgetFrac > dayFrac ? Math.min(5.0, budgetFrac / dayFrac) : 1.0
+    const effectiveIdleMs = Math.round(MULETA_IDLE_MS * paceMult)
+
     // Check if previous wave went unsniped for > 90s → damped +3bps widen + quick 30s retry!
     if (ks.pendingWaveCheck && now - ks.pendingWaveSentMs >= 90_000) {
       if (spot >= ks.pendingWaveTargetSpot * 0.9996) {
@@ -1454,22 +1470,15 @@ async function main() {
         const nextEdge = Math.min(MULETA_MAX_EDGE_BPS, ks.adaptiveEdgeBps + 3)
         log(`[self-tune] wave unsniped after 90s → widening adaptiveEdgeBps ${ks.adaptiveEdgeBps} → ${nextEdge} (retry in 30s)`)
         ks.adaptiveEdgeBps = nextEdge
-        ks.lastMuletaMs = now - MULETA_IDLE_MS + 30_000
+        ks.lastMuletaMs = now - effectiveIdleMs + 30_000
       }
       ks.pendingWaveCheck = false
       ks.pendingWavePings = 0
       saveKeeperState(ks)
     }
 
-    if (now - ks.lastExternalMoveMs < MULETA_IDLE_MS) return false
-    if (now - ks.lastMuletaMs < MULETA_IDLE_MS) return false
-
-    const dailySpent = BigInt(ks.dailyBaitLamports)
-    const maxDaily = BigInt(Math.floor(MAX_DAILY_BAIT_SOL * LAMPORTS_PER_SOL))
-    if (dailySpent >= maxDaily) {
-      log(`[muleta] daily cap reached (${(Number(dailySpent) / 1e9).toFixed(4)}/${MAX_DAILY_BAIT_SOL} SOL)`)
-      return false
-    }
+    if (now - ks.lastExternalMoveMs < effectiveIdleMs) return false
+    if (now - ks.lastMuletaMs < effectiveIdleMs) return false
     const solBal = snap.nativeNow
     const minRes = BigInt(Math.floor(MIN_SOL_RESERVE * LAMPORTS_PER_SOL))
     if (solBal < minRes) {
@@ -1860,6 +1869,16 @@ async function main() {
         usdcPoolEquitySol
       const prevEquitySol = ks.lastEquitySol
       ks.lastEquitySol = equitySol
+      // Auto-rebase highWater on owner wallet outflows (e.g. Titan swaps/transfers from 331 with ZERO pool trade)
+      // so manual wallet usage NEVER stalls Muleta, while real trade/exploit drawdowns still trip the guard!
+      if (!priceMoved && !usdcPriceMoved && !ks.pendingWaveCheck && prevEquitySol > 0 && prevEquitySol - equitySol > 0.08) {
+        const drop = prevEquitySol - equitySol
+        const oldHw = ks.equityHighWaterSol
+        ks.equityHighWaterSol = Math.max(equitySol, oldHw - drop)
+        log(
+          `[guard] owner wallet outflow (-${drop.toFixed(4)} SOL, zero pool move) — rebasing highWater ${oldHw.toFixed(4)} → ${ks.equityHighWaterSol.toFixed(4)} SOL`,
+        )
+      }
       if (equitySol > ks.equityHighWaterSol) ks.equityHighWaterSol = equitySol
 
       if (priceMoved) {
