@@ -96,6 +96,8 @@ async function main() {
       const solBal = (await conn.getBalance(manager.publicKey, 'confirmed')) / 1e9
       const toroBal = await getTokenBalanceAndWithheld(conn, toroAta)
       const [vlAcc, resAcc] = await conn.getMultipleAccountsInfo([pool.validatorList, pool.reserveStake], 'confirmed')
+      const epochInfo = await conn.getEpochInfo('confirmed')
+      const remHours = ((epochInfo.slotsInEpoch - epochInfo.slotIndex) * 0.4) / 3600
       const validators = vlAcc ? parseValidatorListData(vlAcc.data) : []
       const resSol = (resAcc?.lamports ?? 0) / 1e9
       const stakedSol = validators.reduce((s, v) => s + Number(v.activeStakeLamports + v.transientStakeLamports) / 1e9, 0)
@@ -103,6 +105,7 @@ async function main() {
       console.log(`\n=== ${dep.tokenSymbol} LIVE STATUS ===`)
       console.log(`Mint:        ${dep.mint}`)
       console.log(`StakePool:   ${dep.stakePool}`)
+      console.log(`Epoch:       ${epochInfo.epoch} (${((epochInfo.slotIndex / epochInfo.slotsInEpoch) * 100).toFixed(1)}% · Epoch ${epochInfo.epoch + 1} in ~${remHours.toFixed(1)}h)`)
       console.log(`TVL / Supp:  ${(Number(pool.totalLamports) / 1e9).toFixed(6)} SOL / ${(Number(supply) / 1e9).toFixed(6)} ${dep.tokenSymbol}`)
       console.log(`Staking:     reserve=${resSol.toFixed(4)} SOL | staked=${stakedSol.toFixed(4)} SOL (${validators.length} validators${validators.length ? ': ' + validators.map((v) => v.voteAccount.toBase58().slice(0, 8)).join(',') : ''})`)
       console.log(`NAV:         ${pool.navSolPerToken.toFixed(6)} SOL/${dep.tokenSymbol}`)
@@ -174,10 +177,13 @@ async function main() {
       }
       if (fs.existsSync(KEEPER_STATE_FILE)) {
         const ks = JSON.parse(fs.readFileSync(KEEPER_STATE_FILE, 'utf-8'))
+        const checked = Number(ks.snipedWaves ?? 0) + Number(ks.unsnipedWaves ?? 0)
+        const fillPct = checked > 0 ? ((Number(ks.snipedWaves ?? 0) / checked) * 100).toFixed(1) : '0.0'
+        const dailyBait = Number(ks.dailyBaitLamports ?? 0) / 1e9
         console.log(
-          `Keeper KPIs: waves=${ks.totalArbWaves} (sniped=${ks.snipedWaves}, unsniped=${ks.unsnipedWaves}) | ` +
+          `Keeper KPIs: waves=${ks.totalArbWaves} (sniped=${ks.snipedWaves}, unsniped=${ks.unsnipedWaves}, ${fillPct}%) | ` +
             `edge=${ks.adaptiveEdgeBps}bps | burned=${(Number(ks.totalBurnedAtoms ?? 0) / 1e9).toFixed(4)} ${dep.tokenSymbol} | ` +
-            `highWater=${Number(ks.equityHighWaterSol ?? 0).toFixed(4)} SOL`,
+            `dailyBait=${dailyBait.toFixed(4)} SOL | highWater=${Number(ks.equityHighWaterSol ?? 0).toFixed(4)} SOL`,
         )
       }
       break

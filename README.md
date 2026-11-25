@@ -12,11 +12,11 @@
 | **Sanctum SPL Stake Pool (`SP12tWFx`, unmodified)** | [`3X1zrKG6mkWPrbKNuBckNEwUKeQkEB3FEcbSAUdzzAfp`](https://solscan.io/account/3X1zrKG6mkWPrbKNuBckNEwUKeQkEB3FEcbSAUdzzAfp) |
 | **Validator Delegation (0% Commission, 0% MEV Fee)** | [`he1iusunGwqrNtafDtLdhsUQDFvo13z9sUa36PauBtk`](https://solscan.io/account/he1iusunGwqrNtafDtLdhsUQDFvo13z9sUa36PauBtk) (Helius) |
 | **Primary Orca Whirlpool (`SOL / toroSOL`, `ts=8`, `0.30%` fee)** | [`3m5V1UfeYiFUiMRQxvdZQv6kktUcSCHzbMa4HsVSt2Up`](https://www.geckoterminal.com/solana/pools/3m5V1UfeYiFUiMRQxvdZQv6kktUcSCHzbMa4HsVSt2Up) |
-| **Secondary Orca Whirlpool (`USDC / toroSOL`, `ts=64`, `0.30%` fee)** | [`559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3`](https://solscan.io/account/559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3) |
+| **Secondary Orca Whirlpool (`USDC / toroSOL`, `ts=64`, `0.30%` fee)** | [`559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3`](https://www.geckoterminal.com/solana/pools/559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3) |
 | **Orca `WhirlpoolsConfig` (25% Protocol Fee Rake)** | [`2JFwRaPCGHEaMKBqHWzAx4bZS8ZRQ9GohUzG3fKYB52Z`](https://solscan.io/account/2JFwRaPCGHEaMKBqHWzAx4bZS8ZRQ9GohUzG3fKYB52Z) |
 
 - **Trade on Jupiter**: [jup.ag/swap/SOL-Gmd2K22WVRjhMH7eFfAWNa2y782zKSgHcgd8Gd457Mzt](https://jup.ag/swap/SOL-Gmd2K22WVRjhMH7eFfAWNa2y782zKSgHcgd8Gd457Mzt)
-- **Live Chart (GeckoTerminal)**: [geckoterminal.com/solana/pools/3m5V1UfeYiFUiMRQxvdZQv6kktUcSCHzbMa4HsVSt2Up](https://www.geckoterminal.com/solana/pools/3m5V1UfeYiFUiMRQxvdZQv6kktUcSCHzbMa4HsVSt2Up)
+- **Live Charts (GeckoTerminal)**: [toroSOL / SOL](https://www.geckoterminal.com/solana/pools/3m5V1UfeYiFUiMRQxvdZQv6kktUcSCHzbMa4HsVSt2Up) · [toroSOL / USDC](https://www.geckoterminal.com/solana/pools/559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3)
 
 ---
 

@@ -306,7 +306,7 @@ async function main() {
   let lastUsdcSqrtStr = '0'
   let lastUsdcRepositionMs = 0
 
-  log(`=== 03_keeper_service v2.31 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
+  log(`=== 03_keeper_service v2.32 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
   log(`pool=${whirlpoolPk.toBase58()} | pos=${positionPk.toBase58()} | mint=${mint.toBase58()}`)
   log(
     `band=[${BAND_LOW_MULT}x,${BAND_HIGH_MULT}x] | idle=${MULETA_IDLE_MS / 1000}s | ` +
@@ -540,14 +540,12 @@ async function main() {
 
   // ----------------------------------------------------------------- Collect LP + 25% Protocol Rake (Zero-Loss + Auto-Redeem Excess toroSOL)
   async function runCollectFees(
+    wp: ReturnType<typeof parseWhirlpool>,
+    pos: ReturnType<typeof parsePosition>,
     poolState: Awaited<ReturnType<typeof fetchStakePoolState>>,
     toroSpendable: bigint,
     reserveLamports: bigint,
   ) {
-    const [wpAcc, posAcc] = await conn.getMultipleAccountsInfo([whirlpoolPk, positionPk], 'confirmed')
-    if (!wpAcc || !posAcc) return
-    const wp = parseWhirlpool(wpAcc.data)
-    const pos = parsePosition(posAcc.data)
     // Since we own 100% of active L and protocol rake is 25%, total accrued uncollected fees = 4 * protocolFeeOwed
     const estTotalOwed = (wp.protocolFeeOwedA + wp.protocolFeeOwedB) * 4n
     if (estTotalOwed < MIN_COLLECT_LAMPORTS) {
@@ -978,12 +976,12 @@ async function main() {
     const lpToro = solIsA ? posAmts.reqB : posAmts.reqA
 
     // 0) 1-TX ZERO-LOSS LP→SOL→HIGHER-L SUPER-REBALANCER:
-    //    When lpToro > 2.35 & lpSol < 3.90 SOL, atomically:
+    //    When lpToro > 1.85 & lpSol < 4.20 SOL (keeps L pinned in 800B-1,050B sweet spot: +23% NAV/bait!), atomically:
     //      (a) tighten tickLower halfway to spot (withdrawing excess toroSOL),
     //      (b) recover 100% of our own 2% T22 fee in-tx (toroAta → toroAta),
     //      (c) redeem 100% via fee-waived SP12tWFx WithdrawSol → fresh native SOL,
     //      (d) wrap & re-deploy that fresh SOL straight back into HIGHER concentrated L in the SAME tx (0ms idle-SOL gap!)
-    if (solIsA && lpSol < 3_950_000_000n && lpToro > 2_200_000_000n && maxResTokens >= 250_000_000n) {
+    if (solIsA && lpSol < 4_200_000_000n && lpToro > 1_850_000_000n && maxResTokens >= 250_000_000n) {
       // Tighten up to 2/3 of the way on Step 1 (capped at maxAskTick - tickSpacing AND capped so withdrawnToro
       // fits inside ReserveStake's instant SOL liquidity → ZERO Custom:35 even with active validator staking!).
       const maxAskTick = alignTickFloor(wp.tickCurrentIndex - tickSpacing * 2, tickSpacing)
@@ -1564,8 +1562,10 @@ async function main() {
           totalSolAvail,
           (parkReqB * 9998n) / 10000n,
         )
+        // At L=800B-1T, 1 tickSpacing (~8bps) = ~0.31 toroSOL. Allowing up to 0.32 toroSOL (0% T22 loss via in-tx
+        // self-recovery, >=0.50 toroSOL ask kept) eliminates stranded wallet SOL & lifts L by +100B-150B!
         const ceilWithdrawToro = parkReqB > ceilPreview.reqB ? parkReqB - ceilPreview.reqB : 0n
-        if (ceilWithdrawToro <= 120_000_000n) anchorLow = lowCeil
+        if (ceilWithdrawToro <= 320_000_000n && ceilPreview.reqB >= 500_000_000n) anchorLow = lowCeil
       }
     } else {
       const topSpot = Math.max(nav * BAND_HIGH_MULT, targetSpot * 1.008)
@@ -1906,7 +1906,10 @@ async function main() {
           }
         }
 
-        if (!handledWaveSnipe && spot < prevSpot && moveBps >= 3.0) {
+        if (handledWaveSnipe) {
+          log(`[watch] WAVE SNIPED! spot=${spot.toFixed(6)} (${moveBps.toFixed(1)}bps) nav=${poolState.navSolPerToken.toFixed(6)}`)
+          ks.lastExternalMoveMs = Date.now()
+        } else if (spot < prevSpot && moveBps >= 3.0) {
           // V-shaped rebound: after ANY >=3bp external sell drops spot below arbLine, walk back UP in <=45s
           // (clamp BOTH lastExternalMoveMs & lastMuletaMs so a recent wave doesn't trap the chart red for 180s!)
           const reboundAnchor = Date.now() - MULETA_IDLE_MS + 45_000
@@ -1982,7 +1985,7 @@ async function main() {
 
       // 6. Collect LP + 25% protocol rake + auto-redeem excess idle toroSOL every COLLECT_TICK_MS (outside snipe window!)
       if (!ks.pendingWaveCheck && Date.now() - ks.lastCollectMs >= COLLECT_TICK_MS) {
-        await runCollectFees(poolState, toroSnap.spendable, reserveLamports)
+        await runCollectFees(wp, pos, poolState, toroSnap.spendable, reserveLamports)
         if (usdcWp && usdcPos) {
           await maybeCollectUsdcFees(usdcWp, usdcPos, solUsd, poolState.navSolPerToken)
         }
