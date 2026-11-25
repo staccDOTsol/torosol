@@ -306,7 +306,7 @@ async function main() {
   let lastUsdcSqrtStr = '0'
   let lastUsdcRepositionMs = 0
 
-  log(`=== 03_keeper_service v2.32 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
+  log(`=== 03_keeper_service v2.33 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
   log(`pool=${whirlpoolPk.toBase58()} | pos=${positionPk.toBase58()} | mint=${mint.toBase58()}`)
   log(
     `band=[${BAND_LOW_MULT}x,${BAND_HIGH_MULT}x] | idle=${MULETA_IDLE_MS / 1000}s | ` +
@@ -836,8 +836,8 @@ async function main() {
     const distLow = wp.tickCurrentIndex - pos.tickLowerIndex
     const distHigh = pos.tickUpperIndex - wp.tickCurrentIndex
     const outOfRange = distLow <= 0 || distHigh <= 0
-    // Use 2*ts (16 bps) edge threshold so ultra-concentrated L=850B-950B bands (24-28 ticks ask) aren't widened prematurely!
-    const nearEdge = distLow < tickSpacing * 2 || distHigh < tickSpacing * 2
+    // Use 1*ts (8 bps) edge threshold so ultra-concentrated L=1.0T-1.1T bands (9-16 ticks ask) aren't widened prematurely!
+    const nearEdge = distLow < tickSpacing || distHigh < tickSpacing
     // Only drift-trigger on bid floor if Muleta is disabled (Muleta already re-anchors anchorHigh every 3m in 1 tx!)
     const bidFloorDrifted =
       !MULETA_ENABLED &&
@@ -982,9 +982,10 @@ async function main() {
     //      (c) redeem 100% via fee-waived SP12tWFx WithdrawSol → fresh native SOL,
     //      (d) wrap & re-deploy that fresh SOL straight back into HIGHER concentrated L in the SAME tx (0ms idle-SOL gap!)
     if (solIsA && lpSol < 4_200_000_000n && lpToro > 1_850_000_000n && maxResTokens >= 250_000_000n) {
-      // Tighten up to 2/3 of the way on Step 1 (capped at maxAskTick - tickSpacing AND capped so withdrawnToro
-      // fits inside ReserveStake's instant SOL liquidity → ZERO Custom:35 even with active validator staking!).
-      const maxAskTick = alignTickFloor(wp.tickCurrentIndex - tickSpacing * 2, tickSpacing)
+      // Tighten up to 2/3 of the way on Step 1 (smart hybrid maxAskTick = 9..16 ticks ask, zero double-floor SOL stranding,
+      // AND capped so withdrawnToro fits inside ReserveStake's instant SOL liquidity → ZERO Custom:35!).
+      const curBase = alignTickFloor(wp.tickCurrentIndex, tickSpacing)
+      const maxAskTick = Math.min(alignTickCeil(wp.tickCurrentIndex - tickSpacing * 2, tickSpacing), curBase - tickSpacing)
       const twoThirdsTick = alignTickFloor(Math.floor((pos.tickLowerIndex + 2 * wp.tickCurrentIndex) / 3), tickSpacing)
       const step1Cap = maxAskTick - tickSpacing > pos.tickLowerIndex ? maxAskTick - tickSpacing : maxAskTick
       const newL = (pos.liquidity * 9995n) / 10000n
