@@ -1,0 +1,18 @@
+{
+  "name": "toroSOL",
+  "symbol": "toroSOL",
+  "description": "The Undying Bull. 100% SOL-backed Token-2022 Liquid Staking Token on the unmodified Sanctum SPL Stake Pool (delegated to Helius 0% commission) with automated 2% transfer-fee burn-loop NAV growth and 24/7 dual-pool Orca CLMM liquidity (SOL/toroSOL + USDC/toroSOL).",
+  "image": "https://i.imgur.com/vAs7XNs.jpeg",
+  "external_url": "https://github.com/staccDOTsol/torosol",
+  "extensions": {
+    "website": "https://github.com/staccDOTsol/torosol",
+    "github": "https://github.com/staccDOTsol/torosol"
+  },
+  "tags": [
+    "lst",
+    "liquid-staking",
+    "token-2022",
+    "sanctum",
+    "orca"
+  ]
+}
