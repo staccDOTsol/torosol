@@ -311,7 +311,7 @@ async function main() {
   let lastFullGpaBurnMs = 0
   let lastGasRefillMs = 0
 
-  log(`=== 03_keeper_service v2.42 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
+  log(`=== 03_keeper_service v2.43 — SELF-TUNING MATADOR (${DRY_RUN ? 'DRY-RUN' : 'LIVE'}) ===`)
   log(`pool=${whirlpoolPk.toBase58()} | pos=${positionPk.toBase58()} | mint=${mint.toBase58()}`)
   log(
     `band=[${BAND_LOW_MULT}x,${BAND_HIGH_MULT}x] | idle=${MULETA_IDLE_MS / 1000}s | ` +
@@ -1128,10 +1128,10 @@ async function main() {
     const lpTotalValSol = Number(lpSol) + lpToroValSol
     const lpToroShare = lpTotalValSol > 0 ? lpToroValSol / lpTotalValSol : 0
     if (orcaRebalReady && solIsA && lpToroShare > 0.34 && lpToro > 1_150_000_000n && maxResTokens >= 180_000_000n) {
-      // Tighten up to 2/3 of the way on Step 1 (smart hybrid maxAskTick = 9..16 ticks ask, zero double-floor SOL stranding,
-      // AND capped so withdrawnToro fits inside ReserveStake's instant SOL liquidity → ZERO Custom:35!).
-      const curBase = alignTickFloor(wp.tickCurrentIndex, tickSpacing)
-      const maxAskTick = Math.min(alignTickCeil(wp.tickCurrentIndex - tickSpacing * 2, tickSpacing), curBase - tickSpacing)
+      // Tighten up to 2/3 of the way on Step 1, keeping >= 0.52 toroSOL inside LP (so the next Muleta wave NEVER
+      // starves on ask & strands idle SOL!) AND capped to ReserveStake instant liquidity (ZERO Custom:35!).
+      const MIN_POST_BOOST_TORO = 520_000_000n
+      const maxAskTick = alignTickFloor(wp.tickCurrentIndex - tickSpacing, tickSpacing)
       const twoThirdsTick = alignTickFloor(Math.floor((pos.tickLowerIndex + 2 * wp.tickCurrentIndex) / 3), tickSpacing)
       const step1Cap = maxAskTick - tickSpacing > pos.tickLowerIndex ? maxAskTick - tickSpacing : maxAskTick
       const newL = (pos.liquidity * 9995n) / 10000n
@@ -1139,7 +1139,7 @@ async function main() {
       while (newTickLow > pos.tickLowerIndex + tickSpacing) {
         const probe = computeAmountsForLiquidity(wp.sqrtPrice, newTickLow, pos.tickUpperIndex, newL)
         const probeW = posAmts.reqB > probe.reqB ? posAmts.reqB - probe.reqB : 0n
-        if (probeW <= maxResTokens + 150_000_000n) break
+        if (probeW <= maxResTokens + 150_000_000n && probe.reqB >= MIN_POST_BOOST_TORO) break
         newTickLow -= tickSpacing
       }
       if (newTickLow > pos.tickLowerIndex && newTickLow <= maxAskTick) {
@@ -1165,7 +1165,19 @@ async function main() {
             const deltaSqrt = lBoostBid > 0n ? (newAmts.reqB * Q64) / lBoostBid : 0n
             const sqrtABoost = wp.sqrtPrice > deltaSqrt ? wp.sqrtPrice - deltaSqrt : wp.sqrtPrice / 2n
             const exactBoostLow = Math.floor((2 * Math.log(Number(sqrtABoost) / Number(Q64))) / Math.log(1.0001))
-            boostTickLow = Math.min(alignTickCeil(exactBoostLow, tickSpacing), maxAskTick)
+            const boostFloor = Math.min(alignTickFloor(exactBoostLow, tickSpacing), maxAskTick)
+            const boostCeil = Math.min(alignTickCeil(exactBoostLow, tickSpacing), maxAskTick)
+            boostTickLow = boostFloor
+            if (boostCeil > boostFloor) {
+              const ceilBoost = computeLiquidityForAmounts(
+                wp.sqrtPrice,
+                boostCeil,
+                pos.tickUpperIndex,
+                solForBoost,
+                (newAmts.reqB * 9998n) / 10000n,
+              )
+              if (ceilBoost.reqB >= MIN_POST_BOOST_TORO) boostTickLow = boostCeil
+            }
             boost = computeLiquidityForAmounts(
               wp.sqrtPrice,
               boostTickLow,
@@ -1660,9 +1672,9 @@ async function main() {
       const deltaSqrt = lBid > 0n ? (parkReqB * Q64) / lBid : 0n
       const sqrtAExact = sqrtPriceLimit > deltaSqrt ? sqrtPriceLimit - deltaSqrt : sqrtPriceLimit / 2n
       const exactTickLow = Math.floor((2 * Math.log(Number(sqrtAExact) / Number(Q64))) / Math.log(1.0001))
-      // Smart hybrid anchorLow: cap at alignTickCeil(exactTargetTick - 2*ts, ts) (strictly <= alignedBase - ts,
-      // 9..16 ticks ask above walk → ~27 ticks after bot snipe!) so idle wallet SOL isn't stranded by double floor-rounding!
-      const askCapTick = Math.min(alignTickCeil(exactTargetTick - tickSpacing * 2, tickSpacing), alignedBase - tickSpacing)
+      // Tight-ask cap: 4..11 ticks above walk (becomes 16..23 ticks after 12bp bot snipe!) so post-boost ask
+      // NEVER bottlenecks L down by -35% or strands >1 SOL idle in wallet!
+      const askCapTick = alignTickFloor(exactTargetTick - 4, tickSpacing)
       const lowFloor = Math.min(alignTickFloor(exactTickLow, tickSpacing), askCapTick)
       const lowCeil = Math.min(alignTickCeil(exactTickLow, tickSpacing), askCapTick)
       anchorLow = lowFloor
@@ -1675,9 +1687,9 @@ async function main() {
           (parkReqB * 9998n) / 10000n,
         )
         // At L=800B-1T, 1 tickSpacing (~8bps) = ~0.31 toroSOL. Allowing up to 0.32 toroSOL (0% T22 loss via in-tx
-        // self-recovery, >=0.50 toroSOL ask kept) eliminates stranded wallet SOL & lifts L by +100B-150B!
+        // self-recovery, >=0.52 toroSOL ask kept) eliminates stranded wallet SOL & pins L near 850B-1T!
         const ceilWithdrawToro = parkReqB > ceilPreview.reqB ? parkReqB - ceilPreview.reqB : 0n
-        if (ceilWithdrawToro <= 320_000_000n && ceilPreview.reqB >= 500_000_000n) anchorLow = lowCeil
+        if (ceilWithdrawToro <= 320_000_000n && ceilPreview.reqB >= 520_000_000n) anchorLow = lowCeil
       }
     } else {
       const topSpot = Math.max(nav * BAND_HIGH_MULT, targetSpot * 1.008)
