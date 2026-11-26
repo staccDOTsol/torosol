@@ -1,12 +1,12 @@
 {
-  "generatedAtUtc": "2026-11-25T23:13:22.892Z",
+  "generatedAtUtc": "2026-11-26T00:49:39.925Z",
   "network": "mainnet-beta",
-  "slot": 473926257,
+  "slot": 473953104,
   "epoch": {
     "current": 1097,
-    "progressPct": 5.15,
+    "progressPct": 11.37,
     "nextEpoch": 1098,
-    "nextEpochEtaHours": 45.53
+    "nextEpochEtaHours": 42.54
   },
   "protocol": {
     "tokenSymbol": "toroSOL",
@@ -23,11 +23,11 @@
     "epochFee": "0/100"
   },
   "backing": {
-    "tvlSol": 5.466406,
-    "supplyToro": 4.509933,
-    "navSolPerToro": 1.212081,
-    "navGainSinceLaunchPct": 21.21,
-    "reserveSol": 1.4664,
+    "tvlSol": 6.106853,
+    "supplyToro": 5.021295,
+    "navSolPerToro": 1.216191,
+    "navGainSinceLaunchPct": 21.62,
+    "reserveSol": 2.1069,
     "stakedSol": 4.0017,
     "pendingWithheldToro": 0.000023,
     "validators": [
@@ -49,16 +49,16 @@
       "tickSpacing": 8,
       "feePct": 0.3,
       "protocolRakePct": 25,
-      "spotSolPerToro": 1.240448,
-      "premiumVsNavPct": 2.34,
-      "liquidity": "950926538707",
+      "spotSolPerToro": 1.244193,
+      "premiumVsNavPct": 2.3,
+      "liquidity": "721750383920",
       "ticks": [
-        -2168,
-        -2155,
-        -2096
+        -2216,
+        -2185,
+        -2128
       ],
-      "bidSol": 3.1109,
-      "askToro": 0.5618
+      "bidSol": 2.2903,
+      "askToro": 1.0027
     },
     "usdcToro": {
       "address": "559rsvoXtSiwdXZJX6rYhvanz7frfrCb7V1HHSfEXAd3",
@@ -66,112 +66,112 @@
       "feePct": 0.3,
       "protocolRakePct": 25,
       "spotUsdPerToro": 86.46,
-      "solUsdOracle": 70.52,
-      "impliedSolPerToro": 1.2261,
+      "solUsdOracle": 70.67,
+      "impliedSolPerToro": 1.2234,
       "liquidity": "1676068152",
       "bidUsdc": 41.47,
       "askToro": 0.1357
     }
   },
   "keeper": {
-    "totalWaves": 318,
-    "snipedWaves": 302,
+    "totalWaves": 362,
+    "snipedWaves": 346,
     "unsnipedWaves": 8,
-    "allTimeFillPct": 97.4,
+    "allTimeFillPct": 97.7,
     "adaptiveEdgeBps": 12,
-    "keeperBurnedToro": 1.041,
-    "totalBurnedToroInclInit": 1.128
+    "keeperBurnedToro": 1.0578,
+    "totalBurnedToroInclInit": 1.1448
   },
   "recentConfirmedTxs": [
     {
-      "timestampUtc": "2026-11-25 23:13:20 UTC",
+      "timestampUtc": "2026-11-26 00:48:48 UTC",
+      "action": "burn:atomic-sweep-recoup-burn-crank",
+      "signature": "5TVFpur6fJJEHVczjs6aPNKxGUuomNQFohnRdjLSgTheDx6nznFkz5S56AtNmKZAQ424TpQsFPHY8hFUaAdCMcTk",
+      "detail": "swept 0.01020 / burned 0.00051 toroSOL · NAV 1.216067 → 1.216191"
+    },
+    {
+      "timestampUtc": "2026-11-26 00:48:44 UTC",
+      "action": "muleta:1tx-walk+anchor[-2216,-2128]",
+      "signature": "54oxE8L77kmayadMVGZ4YFk5qkYTzbThzERSbEoVKrFJxquYqV4xAg6TJ5tTguy2xqyysx2ryvsLoqHwrRRgqFMP",
+      "detail": "Wave #362 · 1.24439 -> 1.24611 · L=722B"
+    },
+    {
+      "timestampUtc": "2026-11-26 00:47:20 UTC",
+      "action": "burn:atomic-sweep-recoup-burn-crank",
+      "signature": "45pz2eRLyiivLzx4DwKqdNs5LDZwRevfWPCzixSNaP9zumHiWnnGcJNgR9qi5hzFWpvssuKNe9oegbgyTdtbidsz",
+      "detail": "swept 0.00159 / burned 0.00008 toroSOL · NAV 1.216046 → 1.216067"
+    },
+    {
+      "timestampUtc": "2026-11-26 00:46:46 UTC",
       "action": "rebalance:atomic-lp-to-sol-boost",
-      "signature": "5EpGUbhY9Aj5rNZ7godCweqVamJ6nmsDQAhra5XPi5zJAjCwc5pzXRF9cS5nxrzaHzsjAzeCN2q35xDJR4WoobwU",
-      "detail": "L 699B→951B · recycled 0.501 toroSOL -> +0.61 SOL"
+      "signature": "3uRJAqbHnmBwQE3YoddkFrR7wZSfg9cjekPUUZryahKfSkYLYSbu45gfzXyZANswNL9HadRwuJvYw9XShS1kna7D",
+      "detail": "L 574B→870B · recycled 0.821 toroSOL -> +1.00 SOL"
     },
     {
-      "timestampUtc": "2026-11-25 23:13:16 UTC",
-      "action": "rebalance:withdraw-idle-toro",
-      "signature": "24dwxvWHchqoATU2tCAwdTBWp1ResiipqqocdxR3rPjKGkNdyruHgPb71EzWfTzgQirefigHgnJegZ7xU1nLKss5",
-      "detail": "redeemed 0.1683 idle toroSOL -> SOL"
-    },
-    {
-      "timestampUtc": "2026-11-25 23:13:13 UTC",
+      "timestampUtc": "2026-11-26 00:46:43 UTC",
       "action": "burn:atomic-sweep-recoup-burn-crank",
-      "signature": "4tTJSBDVcpNmsPbDVvoaFAyC1HHycnqbT9eWjWVds3yYwV1UnMDiJfLB4TtdYKmXaP5xAXUdt1FMJoTTQgJZ5keX",
-      "detail": "swept 0.00770 / burned 0.00038 toroSOL · NAV 1.211991 → 1.212081"
+      "signature": "493SxdkUCxMFynpac8ZoTsY6zC7zTSCYmCcsawufC7RiZd6nef3nn9ijC9J36MLCEdwfmWcY5mdMiEDxxAzskYoC",
+      "detail": "swept 0.00788 / burned 0.00039 toroSOL · NAV 1.215956 → 1.216046"
     },
     {
-      "timestampUtc": "2026-11-25 23:13:09 UTC",
-      "action": "muleta:1tx-walk+anchor[-2192,-2096]",
-      "signature": "4UrqLM2F611YnAUNSxPwqzoa2ZKGZ9epBCftfxq4TLDc3ayZyB2TbwZgEemXER8C6RxQ3VzU9X45yskQD358fcb9",
-      "detail": "Wave #318 · 1.23947 -> 1.24194 · L=699B"
+      "timestampUtc": "2026-11-26 00:46:39 UTC",
+      "action": "muleta:1tx-walk+anchor[-2240,-2128]",
+      "signature": "5CGCoawLWnf68gjFonNnkW5muZt1oZ9g7pTwnyrVmEXVwR17Ku1vKkewZtkGtJSBAbcUkdAQbZ42oSWkdgPtctfN",
+      "detail": "Wave #361 · 1.24380 -> 1.24600 · L=574B"
     },
     {
-      "timestampUtc": "2026-11-25 23:13:06 UTC",
-      "action": "rebalance:refill-native-gas-from-lp",
-      "signature": "3ajPEJiSGLsfy78kahcHiazZxAduRWd1P1zdxHkco7ew86YTkyaM6ij3m7ZXmLi6r5BnqNVWZiYCmJonee1L6Sk8",
-      "detail": ""
+      "timestampUtc": "2026-11-26 00:45:47 UTC",
+      "action": "collect:lp+proto(est=0.00263+redeem=0.052)",
+      "signature": "asVAtMySKAsQPEAyrtEAc1g3ujbkf4ZYUjMyUrJqNbC9ov3NiU5vPcChHD5Cu1bH75axCsLWZtKptPfMagDxG57",
+      "detail": "collect:lp+proto(est=0.00263+redeem=0.052)"
     },
     {
-      "timestampUtc": "2026-11-25 22:58:48 UTC",
+      "timestampUtc": "2026-11-26 00:44:34 UTC",
       "action": "burn:atomic-sweep-recoup-burn-crank",
-      "signature": "5Tm1SWULrfv6zVGZJu4crnpyHaMXFKBiCY1XgqDV3G8r1PFP6L4Ww1Psp1hCvkhZGtMDijuNStVZKwzChV8KG1my",
-      "detail": "swept 0.00607 / burned 0.00030 toroSOL · NAV 1.211915 → 1.211991"
+      "signature": "yEuHf5zak9xCDVuizRBcrqLESwfZY5q5KAVim4BVedpHeTAWt6MxZBPY89XudbGzzR5EK2xBkNa7AutCjAth7Et",
+      "detail": "swept 0.01102 / burned 0.00055 toroSOL · NAV 1.215822 → 1.215956"
     },
     {
-      "timestampUtc": "2026-11-25 22:58:07 UTC",
-      "action": "collect:lp+proto(est=0.00242+redeem=0.064)",
-      "signature": "qdu6XDuQa8vBjjJ3yCKJ3AxGhVkxQ6ysnrJf6FkkreVRh8rcjvmXT69id1jPBztgdN9MFQx2Sy5XGZYQeBgkaFN",
-      "detail": "collect:lp+proto(est=0.00242+redeem=0.064)"
+      "timestampUtc": "2026-11-26 00:44:30 UTC",
+      "action": "muleta:1tx-walk+anchor[-2216,-2128]",
+      "signature": "2Bke6xLfmM7wtwhsvNDTiBfA5VdhCJgTFeEug7hWi4xMEoPpq1XjP5uPFXwMMrQXJfRHrYJAKd9DfupCkjQRVPMa",
+      "detail": "Wave #360 · 1.24428 -> 1.24586 · L=726B"
     },
     {
-      "timestampUtc": "2026-11-25 22:56:32 UTC",
+      "timestampUtc": "2026-11-26 00:42:20 UTC",
       "action": "rebalance:atomic-lp-to-sol-boost",
-      "signature": "4ndXFgReaPTgBcj4xPV58YD6eMcqX7degF5QQLfGBZ3jhtKKAug26aHGMpryb4CVwfyoppNNgNR8i813abPvUFu5",
-      "detail": "L 712B→1012B · recycled 0.765 toroSOL -> +0.93 SOL"
+      "signature": "3EuzpBXpsCJytGrhzoRSAbjPpbf98EQ8vSZxk3Mn6aXxGFMVjFS8f4KXsZ8YtRK5ULJzLnzGi4Jnz25HG84GaSnY",
+      "detail": "L 621B→895B · recycled 0.667 toroSOL -> +0.81 SOL"
     },
     {
-      "timestampUtc": "2026-11-25 22:56:29 UTC",
+      "timestampUtc": "2026-11-26 00:42:17 UTC",
       "action": "burn:atomic-sweep-recoup-burn-crank",
-      "signature": "GEgW5UveyXuKgPsK7bZo9tntgq4GDQqZJ8MfJToNgCWQNqF7s4JvpdJ1eqzpYczj49ZTZkRhBUMZ7TVjpj5BYfz",
-      "detail": "swept 0.00784 / burned 0.00039 toroSOL · NAV 1.211830 → 1.211915"
+      "signature": "2Y6R9mPpcyzgjSayNRsM8wNBvBAPEJC1vbeNvDsWWb5CgkSsWaN2xEMsw73jt3FCUUc3XgmHRNTECE4LFgHKWzCe",
+      "detail": "swept 0.00684 / burned 0.00034 toroSOL · NAV 1.215742 → 1.215822"
     },
     {
-      "timestampUtc": "2026-11-25 22:56:25 UTC",
-      "action": "muleta:1tx-walk+anchor[-2200,-2096]",
-      "signature": "2UACJvzPeZVeis7cReFQ4PJRjB2Cee2JxaJwVRxNEfnLmaPjWou2XQSPXvpdfLiB7jzeQxexGhaNkYGpU3AdXFBx",
-      "detail": "Wave #317 · 1.24018 -> 1.24177 · L=712B"
+      "timestampUtc": "2026-11-26 00:42:13 UTC",
+      "action": "muleta:1tx-walk+anchor[-2232,-2128]",
+      "signature": "4oTb36WbLj8EW5seqdgiZGLt6p1NtvaBb7Ga8gozhcD1o6tKobAYC2LRUaQTXULzH1xCcWwnw8YRtirKMTYtdQYN",
+      "detail": "Wave #359 · 1.24417 -> 1.24578 · L=621B"
     },
     {
-      "timestampUtc": "2026-11-25 22:54:20 UTC",
+      "timestampUtc": "2026-11-26 00:40:41 UTC",
+      "action": "collect:lp+proto(est=0.00311)",
+      "signature": "3iuqA8GWSFRJyWdaKqoeJ2E3XoUumsYbsx3k3dCH2QZ3tMmWYmLpCtdyCJgqQYQxtfUuiY6rsQL3SUkADCFEK2fa",
+      "detail": "collect:lp+proto(est=0.00311)"
+    },
+    {
+      "timestampUtc": "2026-11-26 00:40:07 UTC",
       "action": "burn:atomic-sweep-recoup-burn-crank",
-      "signature": "wogjX8nr1hsnUYhimTdaf51WZN1nTuewn4JfSwfewGXsii4sumsZDHF9utnQDdKLN96smcxp7oML455CxTk3ZPK",
-      "detail": "swept 0.00864 / burned 0.00043 toroSOL · NAV 1.211731 → 1.211830"
+      "signature": "4vwjUT4KKrH6k4nMqBehPE7JxEhyDFo6Us3BSxktxPw5d8q6Kvyc18cmXZsyL5AnpT6hsS437NaMGuPn9byjTLUJ",
+      "detail": "swept 0.00760 / burned 0.00038 toroSOL · NAV 1.215645 → 1.215742"
     },
     {
-      "timestampUtc": "2026-11-25 22:54:17 UTC",
-      "action": "muleta:1tx-walk+anchor[-2184,-2096]",
-      "signature": "4sAFFJYVgZ5LSG3pzG1AAfGHDK8NRNPvNAnbWh5JELzwaTepBiMRmTpEfD7JjQyejDJQcUS4RcxhsvgD5mz8UgwA",
-      "detail": "Wave #316 · 1.24008 -> 1.24167 · L=784B"
-    },
-    {
-      "timestampUtc": "2026-11-25 22:53:04 UTC",
-      "action": "collect:lp+proto(est=0.00256+redeem=0.314)",
-      "signature": "5rGbWUW1dfxWDUbDxr8PUH1QgSMn4FzireCkAEm77yHRxdNMNfJPFwkdiB51gTADpLoMw7mRFYUCugzywJtCxbuC",
-      "detail": "collect:lp+proto(est=0.00256+redeem=0.314)"
-    },
-    {
-      "timestampUtc": "2026-11-25 22:52:30 UTC",
-      "action": "rebalance:atomic-lp-to-sol-boost",
-      "signature": "58bATnnsdKbSxrEZ5b6ye5k99F4UUGeVu4PDvq5ssDdqyFgi3brCa1ctabF1baZkyNo97ptpg9ufaCmZPHiMm3EF",
-      "detail": "L 818B→939B · recycled 0.294 toroSOL -> +0.36 SOL"
-    },
-    {
-      "timestampUtc": "2026-11-25 22:52:07 UTC",
-      "action": "burn:atomic-sweep-recoup-burn-crank",
-      "signature": "S34WQCttxCfjN1U94YySyGa2HAErDHVu4XrJPFSC783mdY6sWDxfYGBZjeiN1jWVd6bE3gES93N5tcuRQPLxwrM",
-      "detail": "swept 0.00901 / burned 0.00045 toroSOL · NAV 1.211630 → 1.211731"
+      "timestampUtc": "2026-11-26 00:40:03 UTC",
+      "action": "muleta:1tx-walk+anchor[-2216,-2128]",
+      "signature": "4CG4PMTTWWPWdhoimf1Pk8pixnpME54mPwaXHqAhW2mJhojyk881CUcZ1YJqa9unkQdpKT4MdoS6cLs3yJhvzY1t",
+      "detail": "Wave #358 · 1.24429 -> 1.24568 · L=682B"
     }
   ]
 }
