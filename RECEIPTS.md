@@ -1,5 +1,7 @@
 # toroSOL On-Chain Receipts
 
+This dated snapshot records the previous validator allocation. The [current delegation policy and transition](./README.md#delegation-and-withdrawals) describe the move to Holosol.
+
 Independently verifiable Solana mainnet proof snapshot generated directly from live RPC state at **slot `473978625`** (`2026-11-26T02:21:00.119Z`).
 Machine-readable JSON: [`receipts.json`](./receipts.json).
 
@@ -24,7 +26,7 @@ Machine-readable JSON: [`receipts.json`](./receipts.json).
 | Metric | Live Mainnet Value |
 |---|---|
 | **On-Chain NAV Floor** | **`1.219823 SOL / toroSOL`** (**`+21.98%`** in SOL since `1.000000` launch) |
-| **Total SOL Backing (TVL)** | `5.423598 SOL` (`1.4236 SOL` instant ReserveStake + `4.0017 SOL` Helius 0% staked) |
+| **Total SOL Backing (TVL)** | `5.423598 SOL` (`1.4236 SOL` gross reserve + `4.0017 SOL` Helius 0% staked) |
 | **Circulating Supply** | `4.446217 toroSOL` |
 | **Total Permanently Burned** | **`1.1600 toroSOL`** (`1.0730` keeper + `0.0870` init) |
 | **Epoch & Helius Yield ETA** | Epoch `1097` (`17.3%`) · Epoch `1098` in `~39.7h` |

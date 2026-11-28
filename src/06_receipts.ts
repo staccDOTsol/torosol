@@ -19,6 +19,8 @@ import {
 import {
   fetchMintTransferFeeBps,
   fetchStakePoolState,
+  reserveRentFloor,
+  STAKE_ACCOUNT_SIZE,
   findWithheldAccounts,
   parseValidatorListData,
   validatorStakePairs,
@@ -155,7 +157,11 @@ async function main() {
     }
   })
 
-  const reserveSol = (resAcc?.lamports ?? 0) / 1e9
+  const currentRent = await conn.getMinimumBalanceForRentExemption(STAKE_ACCOUNT_SIZE, 'confirmed')
+  const rentFloor = reserveRentFloor(resAcc, currentRent)
+  const grossReserveLamports = BigInt(resAcc!.lamports)
+  const liquidLamports = grossReserveLamports > rentFloor ? grossReserveLamports - rentFloor : 0n
+  const reserveSol = Number(grossReserveLamports) / 1e9
   const tvlSol = Number(pool.totalLamports) / 1e9
   const supplyToro = Number(mintInfo.supply) / 1e9
   const nav = pool.navSolPerToken
@@ -260,7 +266,8 @@ async function main() {
       supplyToro: Number(supplyToro.toFixed(6)),
       navSolPerToro: Number(nav.toFixed(6)),
       navGainSinceLaunchPct: Number(navGainPct.toFixed(2)),
-      reserveSol: Number(reserveSol.toFixed(4)),
+      reserveSol: Number(reserveSol.toFixed(9)),
+      withdrawableReserveLamports: liquidLamports.toString(),
       stakedSol: Number(
         validatorDetails.reduce((s, v) => s + v.activeStakeSol + v.transientStakeSol, 0).toFixed(4),
       ),
@@ -280,7 +287,7 @@ async function main() {
   const valRows = validatorDetails
     .map(
       (v) =>
-        `| Helius 0% (\`${v.voteAccount.slice(0, 8)}...\`) | [\`${v.validatorStakeAccount}\`](https://solscan.io/account/${v.validatorStakeAccount}) | \`${v.activeStakeSol.toFixed(4)} SOL\` (act epoch ${v.vsaActivationEpoch}) | [\`${v.transientStakeAccount}\`](https://solscan.io/account/${v.transientStakeAccount}) | \`${v.transientStakeSol.toFixed(4)} SOL\` (act epoch ${v.tsaActivationEpoch}) |`,
+        `| [\`${v.voteAccount}\`](https://solscan.io/account/${v.voteAccount}) | [\`${v.validatorStakeAccount}\`](https://solscan.io/account/${v.validatorStakeAccount}) | \`${v.activeStakeSol.toFixed(4)} SOL\` (act epoch ${v.vsaActivationEpoch}) | [\`${v.transientStakeAccount}\`](https://solscan.io/account/${v.transientStakeAccount}) | \`${v.transientStakeSol.toFixed(4)} SOL\` (act epoch ${v.tsaActivationEpoch}) |`,
     )
     .join('\n')
 
@@ -317,13 +324,14 @@ Machine-readable JSON: [\`receipts.json\`](./receipts.json).
 | Metric | Live Mainnet Value |
 |---|---|
 | **On-Chain NAV Floor** | **\`${nav.toFixed(6)} SOL / toroSOL\`** (**\`+${navGainPct.toFixed(2)}%\`** in SOL since \`1.000000\` launch) |
-| **Total SOL Backing (TVL)** | \`${tvlSol.toFixed(6)} SOL\` (\`${reserveSol.toFixed(4)} SOL\` instant ReserveStake + \`${payload.backing.stakedSol.toFixed(4)} SOL\` Helius 0% staked) |
+| **Total SOL Backing (TVL)** | \`${tvlSol.toFixed(6)} SOL\` (\`${reserveSol.toFixed(4)} SOL\` gross reserve, \`${payload.backing.stakedSol.toFixed(4)} SOL\` in validator and transient stake accounts) |
+| **SOL available for immediate withdrawal** | \`${(Number(liquidLamports) / 1e9).toFixed(9)} SOL\` from the reserve after stake-account rent |
 | **Circulating Supply** | \`${supplyToro.toFixed(6)} toroSOL\` |
 | **Total Permanently Burned** | **\`${keeperKpis ? (keeperKpis.totalBurnedToroInclInit as number).toFixed(4) : 'n/a'} toroSOL\`** (\`${keeperKpis ? (keeperKpis.keeperBurnedToro as number).toFixed(4) : 'n/a'}\` keeper + \`${INIT_BURN_TORO.toFixed(4)}\` init) |
-| **Epoch & Helius Yield ETA** | Epoch \`${epochInfo.epoch}\` (\`${epochPct.toFixed(1)}%\`) · Epoch \`${epochInfo.epoch + 1}\` in \`~${nextEpochEtaHours.toFixed(1)}h\` |
+| **Epoch and next boundary** | Epoch \`${epochInfo.epoch}\` (\`${epochPct.toFixed(1)}%\`) · Epoch \`${epochInfo.epoch + 1}\` in \`~${nextEpochEtaHours.toFixed(1)}h\` |
 | **Matador Arb Engine** | \`${keeperKpis ? `${keeperKpis.totalWaves} waves · ${keeperKpis.snipedWaves} sniped / ${keeperKpis.unsnipedWaves} unsniped (${keeperKpis.allTimeFillPct}% all-time)` : 'n/a'}\` |
 
-### Native Helius 0% Validator Stake Accounts
+### Validator and transient stake accounts
 
 | Validator | Validator Stake Account (VSA) | VSA Balance | Transient Stake Account (TSA) | TSA Balance |
 |---|---|---|---|---|
@@ -357,7 +365,7 @@ solana account 3X1zrKG6mkWPrbKNuBckNEwUKeQkEB3FEcbSAUdzzAfp
 # 2. Verify Token-2022 Mint has freezeAuthority = None and mintAuthority = Sanctum PDA
 spl-token display Gmd2K22WVRjhMH7eFfAWNa2y782zKSgHcgd8Gd457Mzt --program-2022
 
-# 3. Verify live Helius 0% stake accounts directly on-chain
+# 3. Verify the listed validator stake accounts directly on-chain
 solana stake-account J7AQFxiEN6nhxTuNxhk5TywUtjakt3DkGGsRG2Bg4ZMa
 solana stake-account EJM8gotcWQGMtgycfec1fEc2HY5zBQui2MZD9fiMEqhS
 

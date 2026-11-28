@@ -49,6 +49,8 @@ import {
 import {
   fetchMintTransferFeeBps,
   fetchStakePoolState,
+  reserveRentFloor,
+  STAKE_ACCOUNT_SIZE,
   findWithheldAccounts,
   ixBurnChecked2022,
   ixCleanupRemovedValidatorEntries,
@@ -329,17 +331,20 @@ async function main() {
     return FEE_NORMAL
   }
 
-  // Helper: max poolTokens safely redeemable from ReserveStake without ever hitting Custom:35
-  const RESERVE_FLOOR_LAMPORTS = 25_000_000n // 0.025 SOL hard floor (burn-loop recoup & emergency reserve refill)
-  const REBALANCE_RESERVE_FLOOR_LAMPORTS = 300_000_000n // 0.30 SOL liquid cushion kept in ReserveStake for external users
+  let limitsEpoch = -1
+  let currentStakeRent = 0
+  let minimumIncreaseCost = 0n
+  let reserveFloor = 0n
+
   function maxRedeemableTokens(
     reserveLamports: bigint,
     poolState: Awaited<ReturnType<typeof fetchStakePoolState>>,
-    floorLamports: bigint = RESERVE_FLOOR_LAMPORTS,
   ): bigint {
-    if (poolState.totalLamports <= 0n || reserveLamports <= floorLamports) return 0n
-    const availLam = reserveLamports - floorLamports
-    return (availLam * poolState.poolTokenSupply) / poolState.totalLamports
+    const available = reserveLamports - reserveFloor
+    // Leave an eligible increase, including rent for its transient stake account,
+    // to the staker. The keeper can recycle its own tokens against smaller balances.
+    if (poolState.totalLamports <= 0n || available <= 0n || available >= minimumIncreaseCost) return 0n
+    return (available * poolState.poolTokenSupply) / poolState.totalLamports
   }
 
   // ----------------------------------------------------------------- Atomic 1-tx Burn-Loop + NAV crank + Fee Snap
@@ -629,9 +634,9 @@ async function main() {
       }),
       createCloseAccountInstruction(wsolAta, manager.publicKey, manager.publicKey, [], TOKEN_PROGRAM),
     )
-    // Auto-compound: if idle toroSOL >= 0.05, atomically redeem excess (keeping 0.30 SOL liquid ReserveStake!) → native SOL in-tx!
+    // Auto-compound: if idle toroSOL >= 0.05, atomically redeem excess against a sub-minimum reserve balance → native SOL in-tx!
     const rawRedeemExcess = toroSpendable >= 50_000_000n ? toroSpendable - 20_000_000n : 0n
-    const maxResTokens = maxRedeemableTokens(reserveLamports, poolState, REBALANCE_RESERVE_FLOOR_LAMPORTS)
+    const maxResTokens = maxRedeemableTokens(reserveLamports, poolState)
     const clampedRedeem = rawRedeemExcess < maxResTokens ? rawRedeemExcess : maxResTokens
     const redeemExcess = clampedRedeem >= 20_000_000n ? clampedRedeem : 0n // Skip dust <0.02 toroSOL WithdrawSol (saves 20k CU!)
     if (redeemExcess > 0n) {
@@ -993,8 +998,7 @@ async function main() {
     const orcaRebalReady = Date.now() - ks.lastRebalanceMs >= 150_000
 
     const { toroWallet, wsolWallet, nativeNow, reserveLamports } = snap
-    const maxResTokens = maxRedeemableTokens(reserveLamports, poolState, REBALANCE_RESERVE_FLOOR_LAMPORTS)
-    const maxEmergResTokens = maxRedeemableTokens(reserveLamports, poolState, RESERVE_FLOOR_LAMPORTS)
+    const maxResTokens = maxRedeemableTokens(reserveLamports, poolState)
     const resLam = BigInt(Math.floor(MIN_SOL_RESERVE * LAMPORTS_PER_SOL))
     const freeNative = nativeNow > resLam ? nativeNow - resLam : 0n
     const totalIdleSol = freeNative + wsolWallet.spendable
@@ -1005,7 +1009,7 @@ async function main() {
 
     // -1) REDEEM DEAD IDLE WALLET toroSOL FIRST (before LP→SOL→BOOST consumes ReserveStake surplus!):
     //     1) True emergency refill ONLY if native SOL dips below MIN_SOL_RESERVE (0.18 SOL) — caps top-up to ~0.26 SOL.
-    //     2) Normal fast recycle whenever idle wallet toroSOL >= 0.15 & ReserveStake has surplus above 0.30 SOL cushion.
+    //     2) Normal fast recycle whenever idle wallet toroSOL >= 0.15 & there is sub-minimum reserve liquidity after rent.
     //     Decoupled 30s cooldown, zero Orca touch — ensures 99%+ of capital stays earning in concentrated L!
     const lowNativeReserve = nativeNow < resLam
     if (Date.now() - lastIdleRedeemMs >= 30_000 && toroWallet.spendable >= 150_000_000n) {
@@ -1022,8 +1026,7 @@ async function main() {
           : toroWallet.spendable
       const rawExcess = toroWallet.spendable > keepInWallet + minRedeem ? toroWallet.spendable - keepInWallet : 0n
       const rawToRedeem = lowNativeReserve && rawExcess > emergTokensNeed ? emergTokensNeed : rawExcess
-      const resCap = lowNativeReserve ? maxEmergResTokens : maxResTokens
-      const toRedeem = rawToRedeem < resCap ? rawToRedeem : resCap
+      const toRedeem = rawToRedeem < maxResTokens ? rawToRedeem : maxResTokens
       if (toRedeem >= minRedeem) {
         log(
           `[rebalance] ${lowNativeReserve ? 'reserve-refill' : 'ratio-aware'} redeem ${(Number(toRedeem) / 1e9).toFixed(4)} idle toroSOL → SOL ` +
@@ -1954,7 +1957,18 @@ async function main() {
       const poolState = parseStakePoolData(spAcc.data)
       const parsedValidators = vlAcc ? parseValidatorListData(vlAcc.data) : []
       const valPairs = validatorStakePairs(stakePool, parsedValidators)
-      const reserveLamports = BigInt(resAcc?.lamports ?? 0)
+      if (limitsEpoch !== curEpoch) {
+        const [rent, minimum] = await Promise.all([
+          conn.getMinimumBalanceForRentExemption(STAKE_ACCOUNT_SIZE, 'confirmed'),
+          conn.getStakeMinimumDelegation({ commitment: 'confirmed' }),
+        ])
+        if (rent <= 0 || minimum.value <= 0) throw new Error('Missing stake delegation limits')
+        currentStakeRent = rent
+        minimumIncreaseCost = BigInt(Math.max(minimum.value, 1_000_000)) + BigInt(rent)
+        limitsEpoch = curEpoch
+      }
+      reserveFloor = reserveRentFloor(resAcc, currentStakeRent)
+      const reserveLamports = BigInt(resAcc!.lamports)
       const { bps: t22Bps, withheldInMint } = parseMintTransferFeeData(mintAcc.data, curEpoch)
       const solUsd = oracleAcc ? sqrtPriceX64ToPrice(parseWhirlpool(oracleAcc.data).sqrtPrice, 9, 6) : 0
       const usdcWp = usdcWpAcc ? parseWhirlpool(usdcWpAcc.data) : null

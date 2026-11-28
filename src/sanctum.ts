@@ -1,4 +1,5 @@
 import {
+  type AccountInfo,
   Connection,
   PublicKey,
   StakeProgram,
@@ -16,7 +17,16 @@ export const STAKE_POOL_ACCOUNT_SIZE = 611
 export const VALIDATOR_LIST_HEADER_SIZE = 9 // 1 (type) + 4 (max_validators) + 4 (vec len)
 export const VALIDATOR_STAKE_INFO_SIZE = 73
 export const STAKE_ACCOUNT_SIZE = 200
-export const MINIMUM_RESERVE_LAMPORTS = 1_000_000n // 0.001 SOL required above rent in reserve
+// SPL stake-pool v2.2.0 (also deployed by this Sanctum pool) adds zero to rent.
+export const MINIMUM_RESERVE_LAMPORTS = 0n
+
+export function reserveRentFloor(account: AccountInfo<Buffer> | null, currentRent: number): bigint {
+  if (!account?.owner.equals(StakeProgram.programId) || account.data.length !== STAKE_ACCOUNT_SIZE ||
+      account.data.readUInt32LE(0) !== 1 || currentRent <= 0) throw new Error('Cannot verify the stake reserve')
+  const recordedRent = account.data.readBigUInt64LE(4)
+  return recordedRent > BigInt(currentRent) ? recordedRent : BigInt(currentRent)
+}
+
 
 export interface PoolFee {
   numerator: bigint
